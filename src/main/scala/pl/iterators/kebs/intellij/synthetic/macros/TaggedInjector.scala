@@ -24,7 +24,6 @@ class TaggedInjector extends SyntheticMembersInjector {
           .flatMap(_.aliases)
           .map(makeTypeCompanionObject)
           .flatMap(_.toSeq)
-          .map(a => { println(s"DEBUG: $a"); a })
       case _ => Nil
     }
   }
@@ -37,8 +36,8 @@ class TaggedInjector extends SyntheticMembersInjector {
           tagParams =  getTagTypeParamsAsString(tag)
         } yield
           s"""object ${definition.name} {
-             |  def apply$tagParams(_v: ${t.toString}): ${definition.name}$tagParams = ???
-             |  def from$tagParams(_v: ${t.toString}): ${definition.name}$tagParams = ???
+             |  def apply$tagParams(arg: ${t.toString}): ${definition.name}$tagParams = ???
+             |  def from$tagParams(arg: ${t.toString}): ${definition.name}$tagParams = ???
              |}""".stripMargin
       case _ => None
     }
@@ -47,12 +46,15 @@ class TaggedInjector extends SyntheticMembersInjector {
 object TaggedInjector {
   private val taggedAnnotation = "pl.iterators.kebs.tag.meta.tagged"
 
-  private def findTaggedObjectTypeName(source: ScTypeDefinition): Option[String] =
+  private def findTaggedObjectTypeName(source: ScTypeDefinition): Option[String] = {
     for {
-      _               <- Option(source.findAnnotationNoAliases(taggedAnnotation)) if source.isObject
+      _               <- Option(source.findAnnotationNoAliases(taggedAnnotation)) if (source.isObject || source.isInterface)
       objectClassType <- source.`type`().toOption
       objectClass     <- objectClassType.extractClass
-    } yield objectClass.qualifiedName + "$" //FIXME: find way to get scala qualified object name (without need of adding '$')
+      //FIXME: find way to get scala qualified object name (without need of adding '$')
+      className       =  if (source.isObject) objectClass.qualifiedName + "$" else objectClass.qualifiedName
+    } yield className
+  }
 
   private def findTypeDefByName(project: Project, qualifiedName: String): Option[ScTypeDefinition] =
     JavaPsiFacade.getInstance(project).findClass(qualifiedName, GlobalSearchScope.projectScope(project)) match {

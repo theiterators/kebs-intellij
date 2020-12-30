@@ -13,6 +13,7 @@ lazy val `kebs-intellij` = project
     intellijPlugins := Seq(
       "org.intellij.scala".toPlugin
     ),
+    libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test,
     patchPluginXml := pluginXmlOptions { xml =>
       xml.version = version.value
     }
