@@ -20,6 +20,10 @@ See https://www.jetbrains.com/help/idea/plugins-settings.html to check how to in
 
 Open plugin project in IntelliJ as usual. Sbt defines runtime configuration "kebs-intellij" which runs a new instance of IntelliJ with actual plugin code.
 
+## Known limitations
+
+ * Tagged types without a qualified name (e.g. local classes) are not supported by the plugin (although they are supported by kebs-meta).
+
 ## Resources
 
 Plugin code was influenced by [zio-intellij](https://github.com/zio/zio-intellij) project.

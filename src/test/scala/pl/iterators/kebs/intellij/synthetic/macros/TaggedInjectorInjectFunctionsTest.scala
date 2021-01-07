@@ -27,14 +27,14 @@ class TaggedInjectorInjectFunctionsTest extends MacrosTest {
 
   def testApply(): Unit = {
     assertEquals(
-      "def apply(arg: String): Name = ???",
+      "def apply(arg: _root_.scala.Predef.String): Name = ???",
       method("apply").getText
     )
   }
 
   def testFrom(): Unit = {
     assertEquals(
-      "def from(arg: String): Name = ???",
+      "def from(arg: _root_.scala.Predef.String): Name = ???",
       method("from").getText
     )
   }

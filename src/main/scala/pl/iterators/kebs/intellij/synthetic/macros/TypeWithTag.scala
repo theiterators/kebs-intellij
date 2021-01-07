@@ -19,6 +19,8 @@ class TypeWithTag(
       case _                                      => ""
     }
 
+  private val internalTypeAsString = internalType.canonicalText
+
   def makeTypeObject: String =
     s"""object $name {
        |  $makeApplyFunction
@@ -29,15 +31,15 @@ class TypeWithTag(
     List(makeApplyFunction, makeFromFunction(scObject))
 
   private def makeApplyFunction: String =
-    s"def apply$tagTypeParamsAsString(arg: ${internalType.toString}): $name$tagTypeParamsAsString = ???"
+    s"def apply$tagTypeParamsAsString(arg: $internalTypeAsString): $name$tagTypeParamsAsString = ???"
 
   private def makeFromFunction: String =
-    s"def from$tagTypeParamsAsString(arg: ${internalType.toString}): $name$tagTypeParamsAsString = ???"
+    s"def from$tagTypeParamsAsString(arg: $internalTypeAsString): $name$tagTypeParamsAsString = ???"
 
   private def makeFromFunction(scObject : ScObject): String =
     ValidateFunction.find(scObject) match {
       case Some(ValidateFunction(errorType)) =>
-        s"def from$tagTypeParamsAsString(arg: ${internalType.toString}): Either[${errorType.toString()}, $name$tagTypeParamsAsString] = ???"
+        s"def from$tagTypeParamsAsString(arg: $internalTypeAsString): Either[${errorType.toString}, $name$tagTypeParamsAsString] = ???"
       case None =>
         makeFromFunction
     }
@@ -45,22 +47,20 @@ class TypeWithTag(
 
 object TypeWithTag {
 
-  def fromTypeObject(scObject: ScObject): Option[TypeWithTag] = {
+  def fromTypeObject(scObject: ScObject): Option[TypeWithTag] =
     for {
       taggedType  <- getTypeDefinition(scObject.containingClass)
       typeAlias   <- taggedType.aliases.find(_.name == scObject.name)
       typeWithTag <- fromTypeAlias(typeAlias)
     } yield typeWithTag
-  }
 
-  def fromTypeWithNoTypeObject(templateDefinition: ScTemplateDefinition): Seq[TypeWithTag] = {
+  def fromTypeWithNoTypeObject(templateDefinition: ScTemplateDefinition): Seq[TypeWithTag] =
     (for {
       taggedType    <- getTypeDefinition(templateDefinition)
       typesWithTags =  fromTypeAliases(templateDefinition, taggedType.aliases)
     } yield typesWithTags).toSeq.flatten
-  }
 
-  private def fromTypeAliases(templateDefinition: ScTemplateDefinition, aliases: Seq[ScTypeAlias]): Seq[TypeWithTag] = {
+  private def fromTypeAliases(templateDefinition: ScTemplateDefinition, aliases: Seq[ScTypeAlias]): Seq[TypeWithTag] =
     for {
       alias <- aliases.filter { alias =>
         templateDefinition.members.collectFirst(
@@ -69,7 +69,6 @@ object TypeWithTag {
       }
       typesWithTags <- fromTypeAlias(alias).toSeq
     } yield typesWithTags
-  }
 
   private def fromTypeAlias(typeAlias: ScTypeAlias): Option[TypeWithTag] =
     for {
@@ -93,7 +92,7 @@ object TypeWithTag {
     for {
       objectClassType <- templateDefinition.`type`().toOption
       objectClass     <- objectClassType.extractClass
-      className       =  objectClass.getQualifiedName
+      className       <- Option(objectClass.getQualifiedName)
     } yield className
 
   private def getTypeAliasDefinition(typeAlias: ScTypeAlias): Option[ScTypeAliasDefinition] =
