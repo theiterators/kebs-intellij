@@ -10,8 +10,7 @@ import org.jetbrains.plugins.scala.lang.psi.types.{ScParameterizedType, ScType}
 class TypeWithTag(
   private val name: String,
   private val internalType: ScType,
-  private val tagType: ScType
-) {
+  private val tagType: ScType) {
 
   private val tagTypeParamsAsString: String =
     tagType match {
@@ -36,7 +35,7 @@ class TypeWithTag(
   private def makeFromFunction: String =
     s"def from$tagTypeParamsAsString(arg: $internalTypeAsString): $name$tagTypeParamsAsString = ???"
 
-  private def makeFromFunction(scObject : ScObject): String =
+  private def makeFromFunction(scObject: ScObject): String =
     ValidateFunction.find(scObject) match {
       case Some(ValidateFunction(errorType)) =>
         s"def from$tagTypeParamsAsString(arg: $internalTypeAsString): Either[${errorType.toString}, $name$tagTypeParamsAsString] = ???"
@@ -56,17 +55,17 @@ object TypeWithTag {
 
   def fromTypeWithNoTypeObject(templateDefinition: ScTemplateDefinition): Seq[TypeWithTag] =
     (for {
-      taggedType    <- getTypeDefinition(templateDefinition)
-      typesWithTags =  fromTypeAliases(templateDefinition, taggedType.aliases)
+      taggedType <- getTypeDefinition(templateDefinition)
+      typesWithTags = fromTypeAliases(templateDefinition, taggedType.aliases)
     } yield typesWithTags).toSeq.flatten
 
   private def fromTypeAliases(templateDefinition: ScTemplateDefinition, aliases: Seq[ScTypeAlias]): Seq[TypeWithTag] =
     for {
       alias <- aliases.filter { alias =>
-        templateDefinition.members.collectFirst(
-          { case scObject: ScObject if scObject.name == alias.name => scObject }
-        ).isEmpty
-      }
+                templateDefinition.members
+                  .collectFirst({ case scObject: ScObject if scObject.name == alias.name => scObject })
+                  .isEmpty
+              }
       typesWithTags <- fromTypeAlias(alias).toSeq
     } yield typesWithTags
 
@@ -78,7 +77,7 @@ object TypeWithTag {
 
   private def getTypeDefinition(templateDefinition: ScTemplateDefinition): Option[ScTypeDefinition] =
     for {
-      typeName <- getTypeName(templateDefinition)
+      typeName       <- getTypeName(templateDefinition)
       typeDefinition <- getTypeDefinition(templateDefinition.getProject, typeName)
     } yield typeDefinition
 
@@ -98,15 +97,17 @@ object TypeWithTag {
   private def getTypeAliasDefinition(typeAlias: ScTypeAlias): Option[ScTypeAliasDefinition] =
     typeAlias match {
       case definition: ScTypeAliasDefinition => Some(definition)
-      case _ => None
+      case _                                 => None
     }
 
   private def getTypeWithTag(definition: ScTypeAliasDefinition): Option[(ScType, ScType)] =
     for {
-      aliasedType              <- definition.aliasedType.toOption if aliasedType.isInstanceOf[ScParameterizedType]
-      aliasedParameterizedType =  aliasedType.asInstanceOf[ScParameterizedType] if isTypeWithTag(aliasedParameterizedType)
-      scType                   =  aliasedParameterizedType.typeArguments.head
-      scTag                    =  aliasedParameterizedType.typeArguments.tail.head
+      aliasedType <- definition.aliasedType.toOption if aliasedType.isInstanceOf[ScParameterizedType]
+      aliasedParameterizedType = aliasedType.asInstanceOf[ScParameterizedType] if isTypeWithTag(
+        aliasedParameterizedType
+      )
+      scType = aliasedParameterizedType.typeArguments.head
+      scTag  = aliasedParameterizedType.typeArguments.tail.head
     } yield (scType, scTag)
 
   private def isTypeWithTag(scParameterizedType: ScParameterizedType) =

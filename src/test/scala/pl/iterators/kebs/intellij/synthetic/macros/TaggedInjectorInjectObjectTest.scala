@@ -19,27 +19,18 @@ class TaggedInjectorInjectObjectTest extends MacrosTest {
        |}
        |""".stripMargin
 
-  def testCompile(): Unit = {
+  def testCompile(): Unit =
     checkTextHasNoErrors(code)
-  }
 
-  def testNameObject(): Unit = {
-    assertEquals(
-      """object Name {
+  def testNameObject(): Unit =
+    assertEquals("""object Name {
         |  def apply(arg: _root_.scala.Predef.String): Name = ???
         |  def from(arg: _root_.scala.Predef.String): Name = ???
-        |}""".stripMargin,
-      innerObject("Name").getText
-    )
-  }
+        |}""".stripMargin, innerObject("Name").getText)
 
-  def testIdObject(): Unit = {
-    assertEquals(
-      """object Id {
+  def testIdObject(): Unit =
+    assertEquals("""object Id {
         |  def apply[A](arg: Int): Id[A] = ???
         |  def from[A](arg: Int): Id[A] = ???
-        |}""".stripMargin,
-      innerObject("Id").getText
-    )
-  }
+        |}""".stripMargin, innerObject("Id").getText)
 }

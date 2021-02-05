@@ -38,14 +38,11 @@ class TaggedInjectorInjectObjectWithTypeFromPackageObjectTest extends MacrosTest
 
   override protected val code = ""
 
-  override def setUp() {
+  override def setUp(): Unit = {
     super.setUp()
     inWriteAction {
       val testSourceRoot = LightPlatformTestCase.getSourceRoot.createChildDirectory(null, "test")
-      VfsUtil.saveText(
-        testSourceRoot.createChildData(null, "package.scala"),
-        normalize(packageObject)
-      )
+      VfsUtil.saveText(testSourceRoot.createChildData(null, "package.scala"), normalize(packageObject))
       VfsUtil.saveText(
         testSourceRoot
           .createChildDirectory(null, "example")
@@ -55,9 +52,8 @@ class TaggedInjectorInjectObjectWithTypeFromPackageObjectTest extends MacrosTest
     }
   }
 
-  def testCompile(): Unit = {
-    checkTextHasNoErrors(
-      s"""package test.example
+  def testCompile(): Unit =
+    checkTextHasNoErrors(s"""package test.example
          |
          |object TaggedExampleUsage {
          |  import TaggedExample._
@@ -69,5 +65,4 @@ class TaggedInjectorInjectObjectWithTypeFromPackageObjectTest extends MacrosTest
          |  }
          |}
          |""".stripMargin)
-  }
 }

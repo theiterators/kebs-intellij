@@ -17,11 +17,11 @@ import org.jetbrains.plugins.scala.lang.formatting.settings.ScalaCodeStyleSettin
 import org.junit.Assert.{assertNotNull, fail}
 
 /**
- * User: Dmitry Naydanov
- * Date: 3/5/12
- */
+  * User: Dmitry Naydanov
+  * Date: 3/5/12
+  */
 abstract class ScalaLightCodeInsightFixtureTestAdapter
-  extends LightJavaCodeInsightFixtureTestCase
+    extends LightJavaCodeInsightFixtureTestCase
     with ScalaSdkOwner
     with TestFixtureProvider
     with FailableTest {
@@ -36,9 +36,7 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
 
   protected def loadScalaLibrary: Boolean = true
 
-  override protected def librariesLoaders: Seq[LibraryLoader] = Seq(
-    ScalaSDKLoader()
-  )
+  override protected def librariesLoaders: Seq[LibraryLoader] = Seq(ScalaSDKLoader())
 
   override protected def getProjectDescriptor: LightProjectDescriptor = new ScalaLightProjectDescriptor() {
     override def tuneModule(module: Module): Unit = setUpLibraries(module)
@@ -59,19 +57,13 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
   }
 
   protected def configureFromFileText(fileText: String): PsiFile = {
-    val file = getFixture.configureByText(
-      ScalaFileType.INSTANCE,
-      normalize(fileText)
-    )
+    val file = getFixture.configureByText(ScalaFileType.INSTANCE, normalize(fileText))
     assertNotNull(file)
     file
   }
 
   protected def checkTextHasNoErrors(text: String): Unit = {
-    getFixture.configureByText(
-      ScalaFileType.INSTANCE,
-      text
-    )
+    getFixture.configureByText(ScalaFileType.INSTANCE, text)
     CodeFoldingManager.getInstance(getProject).buildInitialFoldings(getEditor)
 
     if (shouldPass) {
@@ -96,12 +88,8 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
   protected def getScalaSettings: ScalaCodeStyleSettings =
     getCurrentCodeStyleSettings.getCustomSettings(classOf[ScalaCodeStyleSettings])
 
-  private def testHighlighting(virtualFile: VirtualFile): Unit = getFixture.testHighlighting(
-    false,
-    false,
-    false,
-    virtualFile
-  )
+  private def testHighlighting(virtualFile: VirtualFile): Unit =
+    getFixture.testHighlighting(false, false, false, virtualFile)
 
   protected def changePsiAt(offset: Int): Unit =
     invokeAndWait {
@@ -151,15 +139,16 @@ object ScalaLightCodeInsightFixtureTestAdapter {
     val caretIndicesNormalized = caretIndices.zipWithIndex.map {
       case (caretIdx, idx) => caretIdx - idx * CARET_TAG.length
     }
-    (
-      textNormalized.replace(CARET_TAG, ""),
-      caretIndicesNormalized
-    )
+    (textNormalized.replace(CARET_TAG, ""), caretIndicesNormalized)
   }
 
   implicit class Ext(private val adapter: ScalaLightCodeInsightFixtureTestAdapter) extends AnyVal {
 
-    def configureJavaFile(fileText: String, className: String, packageName: String = null): Unit = inWriteAction {
+    def configureJavaFile(
+      fileText: String,
+      className: String,
+      packageName: String = null
+    ): Unit = inWriteAction {
       val root = LightPlatformTestCase.getSourceRoot match {
         case sourceRoot if packageName == null => sourceRoot
         case sourceRoot                        => sourceRoot.createChildDirectory(null, packageName)

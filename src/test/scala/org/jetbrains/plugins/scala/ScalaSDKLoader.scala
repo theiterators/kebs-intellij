@@ -6,7 +6,13 @@ import com.intellij.openapi.roots.ui.configuration.libraryEditor.ExistingLibrary
 import com.intellij.openapi.vfs.{JarFileSystem, VirtualFile}
 import com.intellij.testFramework.PsiTestUtil
 import org.jetbrains.plugins.scala.extensions.ObjectExt
-import org.jetbrains.plugins.scala.project.{ModuleExt, ScalaLanguageLevel, ScalaLibraryProperties, ScalaLibraryType, template}
+import org.jetbrains.plugins.scala.project.{
+  ModuleExt,
+  ScalaLanguageLevel,
+  ScalaLibraryProperties,
+  ScalaLibraryType,
+  template
+}
 import org.junit.Assert._
 
 import java.io.File
@@ -30,15 +36,12 @@ case class ScalaSDKLoader(includeScalaReflect: Boolean = false) extends LibraryL
           scalaLibraryDescription.transitive(),
           //scalaLibraryDescription(Scala_2_13),
           //DependencyDescription("ch.epfl.lamp", s"tasty-core_${version.major}", version.minor),
-          DependencyDescription("ch.epfl.lamp", "dotty-interfaces", version.minor),
+          DependencyDescription("ch.epfl.lamp", "dotty-interfaces", version.minor)
           //DependencyDescription("org.scala-lang.modules", "scala-asm", "7.0.0-scala-1")
         )
-      case _                  =>
+      case _ =>
         val maybeScalaReflect = if (includeScalaReflect) Some(scalaReflectDescription) else None
-        List(
-          scalaCompilerDescription,
-          scalaLibraryDescription
-        ) ++ maybeScalaReflect
+        List(scalaCompilerDescription, scalaLibraryDescription) ++ maybeScalaReflect
     }
 
   protected def sourcesDependency(implicit version: ScalaVersion): DependencyDescription =
@@ -51,7 +54,7 @@ case class ScalaSDKLoader(includeScalaReflect: Boolean = false) extends LibraryL
 
   override final def init(implicit module: Module, version: ScalaVersion): Unit = {
     val dependencies = binaryDependencies
-    val resolved = dependencyManager.resolve(dependencies: _*)
+    val resolved     = dependencyManager.resolve(dependencies: _*)
 
     if (version.languageLevel == ScalaLanguageLevel.Scala_3_0)
       assertTrue(
@@ -66,7 +69,7 @@ case class ScalaSDKLoader(includeScalaReflect: Boolean = false) extends LibraryL
       )
 
     val (resolvedOk, resolvedMissing) = resolved.partition(_.file.exists())
-    val compilerClasspath = resolvedOk.map(_.file)
+    val compilerClasspath             = resolvedOk.map(_.file)
 
     assertTrue(
       s"Some SDK jars were resolved but for some reason do not exist:\n$resolvedMissing",
@@ -78,7 +81,8 @@ case class ScalaSDKLoader(includeScalaReflect: Boolean = false) extends LibraryL
     )
 
     val compilerFile = compilerClasspath.find(_.getName.contains("compiler")).getOrElse {
-      fail(s"Local SDK files should contain compiler jar for : $version\n${compilerClasspath.mkString("\n")}").asInstanceOf[Nothing]
+      fail(s"Local SDK files should contain compiler jar for : $version\n${compilerClasspath.mkString("\n")}")
+        .asInstanceOf[Nothing]
     }
 
     val classesRoots = {
@@ -89,20 +93,17 @@ case class ScalaSDKLoader(includeScalaReflect: Boolean = false) extends LibraryL
     val libraryTable = LibraryTablesRegistrar.getInstance.getLibraryTable(module.getProject)
     val scalaSdkName = s"scala-sdk-${version.minor}"
 
-    def createNewLibrary = PsiTestUtil.addProjectLibrary(
-      module,
-      scalaSdkName,
-      classesRoots,
-      ju.Collections.singletonList(sourceRoot)
-    )
+    def createNewLibrary =
+      PsiTestUtil.addProjectLibrary(module, scalaSdkName, classesRoots, ju.Collections.singletonList(sourceRoot))
 
     val library =
-      libraryTable.getLibraryByName(scalaSdkName)
+      libraryTable
+        .getLibraryByName(scalaSdkName)
         .toOption
         .getOrElse(createNewLibrary)
 
     inWriteAction {
-      val version = Artifact.ScalaCompiler.versionOf(compilerFile)
+      val version    = Artifact.ScalaCompiler.versionOf(compilerFile)
       val properties = ScalaLibraryProperties(version, compilerClasspath)
 
       val editor = new ExistingLibraryEditor(library, null)
