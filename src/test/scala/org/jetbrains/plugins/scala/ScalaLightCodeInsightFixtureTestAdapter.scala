@@ -32,7 +32,7 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
 
   final override def getFixture: JavaCodeInsightTestFixture = myFixture
 
-  override def getTestDataPath: String = TestUtils.getTestDataPath + "/"
+  override def getTestDataPath: String = TestUtils.testDataPath + "/"
 
   protected def loadScalaLibrary: Boolean = true
 
