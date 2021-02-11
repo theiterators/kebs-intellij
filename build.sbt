@@ -12,7 +12,10 @@ lazy val `kebs-intellij` = project
   .in(file("."))
   .enablePlugins(SbtIdeaPlugin)
   .settings(
-    intellijPlugins := Seq("org.intellij.scala".toPlugin),
+    intellijPlugins := Seq(
+      "com.intellij.java".toPlugin, // this is not required in the runtime, although it is required by JetBrains, see https://blog.jetbrains.com/platform/2019/06/java-functionality-extracted-as-a-plugin/
+      "org.intellij.scala".toPlugin
+    ),
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test,
     patchPluginXml := pluginXmlOptions { xml =>
       xml.version     = version.value
