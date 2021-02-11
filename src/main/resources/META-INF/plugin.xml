@@ -18,6 +18,8 @@
     <idea-version since-build="203" until-build="203.*"/>
 
     <depends>org.intellij.scala</depends>
+    <depends>com.intellij.java</depends>
+    <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="org.intellij.scala">
         <syntheticMemberInjector implementation="pl.iterators.kebs.intellij.synthetic.macros.TaggedInjector"/>
