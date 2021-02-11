@@ -1,5 +1,5 @@
 ThisBuild / scalaVersion := "2.13.4"
-ThisBuild / version := "0.0.2"
+ThisBuild / version := "0.0.3"
 ThisBuild / organization := "pl.iterators"
 ThisBuild / organizationName := "Iterators"
 ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
