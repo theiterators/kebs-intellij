@@ -29,15 +29,19 @@ Plugin jar is located in `target/plugin/kebs-intellij/lib/` directory of the pro
 
 See https://www.jetbrains.com/help/idea/managing-plugins.html#install_plugin_from_disk for instructions how to install the plugin from disk.
 
+## Known limitations
+
+* Tagged types without a qualified name (e.g. local classes) are not supported by the plugin (although they are supported by kebs-tagged-meta).
+
 ## Development
 
 Open plugin project in IntelliJ as usual. Sbt defines runtime configuration "kebs-intellij" which runs a new instance of IntelliJ with actual plugin code.
 
-## Known limitations
+## Contributing
 
- * Tagged types without a qualified name (e.g. local classes) are not supported by the plugin (although they are supported by kebs-tagged-meta).
+Like what you see? Help improve this plugin by submitting issues and ideas!
 
-## Credits
+## Acknowledgments
 
 Plugin code was influenced by [zio-intellij](https://github.com/zio/zio-intellij) project.
 
