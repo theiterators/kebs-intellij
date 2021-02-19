@@ -5,7 +5,7 @@ import com.intellij.testFramework.LightPlatformTestCase
 import org.jetbrains.plugins.scala.ScalaLightCodeInsightFixtureTestAdapter.normalize
 import org.jetbrains.plugins.scala.inWriteAction
 
-class TaggedInjectorInjectObjectWithTypeFromPackageObjectTest extends MacrosTest {
+class TaggedInjectorInjectTaggedTypeObjectWithTypeFromPackageObjectTest extends MacrosTest {
 
   private val packageObject =
     s"""package test

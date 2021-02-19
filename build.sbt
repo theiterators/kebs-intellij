@@ -18,13 +18,19 @@ lazy val `kebs-intellij` = project
     ),
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test,
     patchPluginXml := pluginXmlOptions { xml =>
-      xml.version     = version.value
-      xml.changeNotes = """<![CDATA[
-        TBD
-        <ul>
-          <li>TBD</li>
-        </ul>
-      ]]>"""
+      xml.version = version.value
+      xml.changeNotes =
+        """<![CDATA[
+          Support for upcoming versions of IntelliJ and bugfixes.
+          <ul>
+            <li>support for IntelliJ IDEA 2021.*</li>
+            <li>
+              support for <code>CaseClass1Rep</code> implicits - add hints in IntelliJ IDEA for the implicits generated
+              by kebs-tagged-meta for tags in objects and traits tagged with
+              <a href="https://github.com/theiterators/kebs#tagged-types"><code>@tagged</code></a> annotation (#1)
+            </li>
+          </ul>
+        ]]>"""
     }
   )
 

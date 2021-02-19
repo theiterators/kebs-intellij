@@ -2,7 +2,7 @@ package pl.iterators.kebs.intellij.synthetic.macros
 
 import org.junit.Assert.assertEquals
 
-class TaggedInjectorInjectObjectTest extends MacrosTest {
+class TaggedInjectorInjectTaggedTypeObjectTest extends MacrosTest {
 
   override protected val code =
     s"""package test.unit
