@@ -25,4 +25,8 @@
         <syntheticMemberInjector implementation="pl.iterators.kebs.intellij.synthetic.macros.TaggedInjector"/>
     </extensions>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <defaultLiveTemplates file="/liveTemplates/kebs.xml"/>
+    </extensions>
+
 </idea-plugin>
