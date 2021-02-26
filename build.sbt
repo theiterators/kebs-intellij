@@ -6,8 +6,6 @@ ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
 ThisBuild / intellijPluginName := "kebs-intellij"
 ThisBuild / intellijBuild := "203"
 
-ThisBuild / scalacOptions += "-deprecation"
-
 lazy val `kebs-intellij` = project
   .in(file("."))
   .enablePlugins(SbtIdeaPlugin)
@@ -17,6 +15,8 @@ lazy val `kebs-intellij` = project
       "org.intellij.scala".toPlugin
     ),
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test,
+    scalacOptions += "-deprecation",
+    testOptions += Tests.Argument(TestFrameworks.JUnit, "-v"),
     patchPluginXml := pluginXmlOptions { xml =>
       xml.version = version.value
       xml.changeNotes =

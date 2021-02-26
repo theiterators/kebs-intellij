@@ -25,4 +25,13 @@
         <syntheticMemberInjector implementation="pl.iterators.kebs.intellij.synthetic.macros.TaggedInjector"/>
     </extensions>
 
+    <actions>
+        <action id="kebs.tagged-object-generate"
+                class="pl.iterators.kebs.intellij.action.GenerateTaggedObjectAction"
+                text="Generate @tagged object"
+                description="Generate @tagged object">
+            <add-to-group group-id="GenerateGroup" anchor="last"/>
+        </action>
+    </actions>
+
 </idea-plugin>
