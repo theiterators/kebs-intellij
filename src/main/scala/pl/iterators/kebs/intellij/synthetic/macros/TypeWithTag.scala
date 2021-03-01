@@ -1,16 +1,15 @@
 package pl.iterators.kebs.intellij.synthetic.macros
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScTypeAlias, ScTypeAliasDefinition}
-import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.{ScObject, ScTemplateDefinition, ScTypeDefinition}
+import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.{ScObject, ScTemplateDefinition}
 import org.jetbrains.plugins.scala.lang.psi.types.{ScParameterizedType, ScType}
+import pl.iterators.kebs.intellij.TypeUtils._
+import pl.iterators.kebs.intellij.kebsPackage
 
 class TypeWithTag(
-  private val name: String,
-  private val internalType: ScType,
-  private val tagType: ScType) {
+  val name: String,
+  val tagType: ScType,
+  private val internalType: ScType) {
 
   private val tagTypeParamsAsString: String =
     tagType match {
@@ -29,6 +28,12 @@ class TypeWithTag(
   def makeFunctionsForTypeObject(scObject: ScObject): Seq[String] =
     List(makeApplyFunction, makeFromFunction(scObject))
 
+  def makeCaseClass1RepTagImplicit: String = {
+    import TypeWithTag.cc1RepClassName
+    val defOrVal = if (tagTypeParamsAsString.isEmpty) "val" else "def"
+    s"""implicit $defOrVal ${name}CaseClass1Rep$tagTypeParamsAsString: $cc1RepClassName[$name$tagTypeParamsAsString, $internalTypeAsString] = ???"""
+  }
+
   private def makeApplyFunction: String =
     s"def apply$tagTypeParamsAsString(arg: $internalTypeAsString): $name$tagTypeParamsAsString = ???"
 
@@ -39,78 +44,65 @@ class TypeWithTag(
     ValidateFunction.find(scObject) match {
       case Some(ValidateFunction(errorType)) =>
         s"def from$tagTypeParamsAsString(arg: $internalTypeAsString): Either[${errorType.toString}, $name$tagTypeParamsAsString] = ???"
-      case None =>
+      case _ =>
         makeFromFunction
     }
 }
 
 object TypeWithTag {
 
-  def fromTypeObject(scObject: ScObject): Option[TypeWithTag] =
+  private val kebsTaggedAlias             = "@@"
+  private val kebsTaggedPackageObjectName = s"$kebsPackage.tagged.package$$"
+  private val cc1RepClassName             = s"_root_.$kebsPackage.macros.CaseClass1Rep"
+
+  def fromTypeAlias(typeAlias: ScTypeAlias): Option[TypeWithTag] =
     for {
-      taggedType  <- getTypeDefinition(scObject.containingClass)
-      typeAlias   <- taggedType.aliases.find(_.name == scObject.name)
-      typeWithTag <- fromTypeAlias(typeAlias)
+      definition  <- getTypeAliasDefinition(typeAlias)
+      typeWithTag <- fromTypeAliasDefinition(definition)
     } yield typeWithTag
 
-  def fromTypeWithNoTypeObject(templateDefinition: ScTemplateDefinition): Seq[TypeWithTag] =
+  def fromTypeObject(scObject: ScObject): Option[TypeWithTag] =
+    for {
+      taggedContainer <- getTypeDefinition(scObject.containingClass)
+      typeAlias       <- taggedContainer.aliases.find(_.name == scObject.name)
+      typeWithTag     <- fromTypeAlias(typeAlias)
+    } yield typeWithTag
+
+  def collectAllWithNoTypeObject(container: ScTemplateDefinition): Seq[TypeWithTag] =
     (for {
-      taggedType <- getTypeDefinition(templateDefinition)
-      typesWithTags = fromTypeAliases(templateDefinition, taggedType.aliases)
+      taggedContainer <- getTypeDefinition(container)
+      typesWithTags = fromTypeAliasesWithNoTypeObject(container, taggedContainer.aliases)
     } yield typesWithTags).toSeq.flatten
 
-  private def fromTypeAliases(templateDefinition: ScTemplateDefinition, aliases: Seq[ScTypeAlias]): Seq[TypeWithTag] =
+  private def fromTypeAliasesWithNoTypeObject(
+    container: ScTemplateDefinition,
+    aliases: Seq[ScTypeAlias]
+  ): Seq[TypeWithTag] =
     for {
-      alias <- aliases.filter { alias =>
-                templateDefinition.members
-                  .collectFirst({ case scObject: ScObject if scObject.name == alias.name => scObject })
-                  .isEmpty
-              }
+      alias         <- aliases.filter(withNoTypeObjectPredicate(container))
       typesWithTags <- fromTypeAlias(alias).toSeq
     } yield typesWithTags
 
-  private def fromTypeAlias(typeAlias: ScTypeAlias): Option[TypeWithTag] =
+  private def withNoTypeObjectPredicate(container: ScTemplateDefinition)(alias: ScTypeAlias): Boolean =
+    container.members
+      .collectFirst({ case scObject: ScObject if scObject.name == alias.name => scObject })
+      .isEmpty
+
+  private def fromTypeAliasDefinition(definition: ScTypeAliasDefinition): Option[TypeWithTag] =
     for {
-      definition              <- getTypeAliasDefinition(typeAlias)
-      (internalType, tagType) <- getTypeWithTag(definition)
-    } yield new TypeWithTag(typeAlias.name, internalType, tagType)
+      aliasedType       <- definition.aliasedType.toOption
+      parameterizedType <- getParameterizedType(aliasedType) if isTypeWithTag(parameterizedType)
+      scType = parameterizedType.typeArguments.head
+      scTag  = parameterizedType.typeArguments.tail.head
+    } yield new TypeWithTag(definition.getName(), scTag, scType)
 
-  private def getTypeDefinition(templateDefinition: ScTemplateDefinition): Option[ScTypeDefinition] =
-    for {
-      typeName       <- getTypeName(templateDefinition)
-      typeDefinition <- getTypeDefinition(templateDefinition.getProject, typeName)
-    } yield typeDefinition
-
-  private def getTypeDefinition(project: Project, qualifiedName: String): Option[ScTypeDefinition] =
-    JavaPsiFacade.getInstance(project).findClass(qualifiedName, GlobalSearchScope.projectScope(project)) match {
-      case typeDef: ScTypeDefinition => Some(typeDef)
-      case _                         => None
-    }
-
-  private def getTypeName(templateDefinition: ScTemplateDefinition): Option[String] =
-    for {
-      objectClassType <- templateDefinition.`type`().toOption
-      objectClass     <- objectClassType.extractClass
-      className       <- Option(objectClass.getQualifiedName)
-    } yield className
-
-  private def getTypeAliasDefinition(typeAlias: ScTypeAlias): Option[ScTypeAliasDefinition] =
-    typeAlias match {
-      case definition: ScTypeAliasDefinition => Some(definition)
-      case _                                 => None
-    }
-
-  private def getTypeWithTag(definition: ScTypeAliasDefinition): Option[(ScType, ScType)] =
-    for {
-      aliasedType <- definition.aliasedType.toOption if aliasedType.isInstanceOf[ScParameterizedType]
-      aliasedParameterizedType = aliasedType.asInstanceOf[ScParameterizedType] if isTypeWithTag(
-        aliasedParameterizedType
-      )
-      scType = aliasedParameterizedType.typeArguments.head
-      scTag  = aliasedParameterizedType.typeArguments.tail.head
-    } yield (scType, scTag)
-
-  private def isTypeWithTag(scParameterizedType: ScParameterizedType) =
-    scParameterizedType.designator.toString == "tagged.@@" && scParameterizedType.typeArguments.size == 2
-
+  // is it "SomeType @@ Tag"
+  private def isTypeWithTag(scParameterizedType: ScParameterizedType): Boolean =
+    (for {
+      aliasType       <- scParameterizedType.designator.aliasType
+      definition      <- getTypeAliasDefinition(aliasType.ta) if definition.name == kebsTaggedAlias
+      containingType  <- definition.containingClass.`type`().toOption
+      containingClass <- containingType.extractClass
+      containingClassName = containingClass.getQualifiedName
+    } yield containingClassName).contains(kebsTaggedPackageObjectName)
 }
