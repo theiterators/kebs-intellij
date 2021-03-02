@@ -15,7 +15,6 @@ class ScalaLightProjectDescriptor extends LightProjectDescriptor {
     override def moduleCreated(module: Module): Unit = {
       delegate.moduleCreated(module)
       myModule = module
-      //      tuneModule(module)
     }
 
     override def sourceRootCreated(sourceRoot: VirtualFile): Unit = delegate.sourceRootCreated(sourceRoot)

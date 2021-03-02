@@ -1,20 +1,27 @@
 package org.jetbrains.plugins.scala
 
 import com.intellij.application.options.CodeStyle
+import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.codeInsight.folding.CodeFoldingManager
 import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.registry.Registry
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.{VfsUtil, VirtualFile}
-import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.codeStyle.{CodeStyleSettings, CommonCodeStyleSettings}
 import com.intellij.psi.{PsiDocumentManager, PsiFile}
 import com.intellij.testFramework.fixtures.{JavaCodeInsightTestFixture, LightJavaCodeInsightFixtureTestCase}
-import com.intellij.testFramework.{EditorTestUtil, IdeaTestUtil, LightPlatformTestCase, LightProjectDescriptor}
-import org.jetbrains.plugins.scala.extensions.invokeAndWait
+import com.intellij.testFramework.{EditorTestUtil, LightPlatformTestCase, LightProjectDescriptor}
+import org.jetbrains.plugins.scala.extensions.{inWriteCommandAction, invokeAndWait}
 import org.jetbrains.plugins.scala.lang.formatting.settings.ScalaCodeStyleSettings
-import org.junit.Assert.{assertNotNull, fail}
+import org.jetbrains.plugins.scala.libraryLoaders.{LibraryLoader, ScalaSDKLoader, SmartJDKLoader}
+import org.jetbrains.plugins.scala.settings.ScalaApplicationSettings
+import org.junit.Assert.{assertEquals, assertNotNull, fail}
+
+import scala.jdk.CollectionConverters._
 
 /**
   * User: Dmitry Naydanov
@@ -29,8 +36,10 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
   import ScalaLightCodeInsightFixtureTestAdapter._
 
   val CARET = EditorTestUtil.CARET_TAG
+  val START = EditorTestUtil.SELECTION_START_TAG
+  val END   = EditorTestUtil.SELECTION_END_TAG
 
-  final override def getFixture: JavaCodeInsightTestFixture = myFixture
+  override final def getFixture: JavaCodeInsightTestFixture = myFixture
 
   override def getTestDataPath: String = TestUtils.testDataPath + "/"
 
@@ -40,7 +49,7 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
 
   override protected def getProjectDescriptor: LightProjectDescriptor = new ScalaLightProjectDescriptor() {
     override def tuneModule(module: Module): Unit = setUpLibraries(module)
-    override def getSdk: Sdk                      = IdeaTestUtil.getMockJdk(LanguageLevel.JDK_11.toJavaVersion)
+    override def getSdk: Sdk                      = SmartJDKLoader.getOrCreateJDK()
   }
 
   override def setUpLibraries(implicit module: Module): Unit = {
@@ -56,11 +65,22 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
     super.tearDown()
   }
 
-  protected def configureFromFileText(fileText: String): PsiFile = {
-    val file = getFixture.configureByText(ScalaFileType.INSTANCE, normalize(fileText))
+  protected def configureFromFileText(fileText: String): PsiFile =
+    configureFromFileText(fileText, ScalaFileType.INSTANCE)
+
+  protected def configureFromFileText(fileText: String, fileType: FileType): PsiFile = {
+    val file = getFixture.configureByText(fileType, normalize(fileText))
     assertNotNull(file)
     file
   }
+
+  protected def configureFromFileText(fileText: String, fileType: String): PsiFile = {
+    val file = getFixture.configureByText("Test." + fileType, normalize(fileText))
+    assertNotNull(file)
+    file
+  }
+
+  protected def getEditorOffset: Int = getEditor.getCaretModel.getOffset
 
   protected def checkTextHasNoErrors(text: String): Unit = {
     getFixture.configureByText(ScalaFileType.INSTANCE, text)
@@ -78,6 +98,38 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
     }
   }
 
+  protected def checkHasErrorAroundCaret(text: String): Unit = {
+    val normalizedText = normalize(text)
+    myFixture.configureByText("dummy.scala", normalizedText)
+    val caretIndex = normalizedText.indexOf(CARET)
+
+    def isAroundCaret(info: HighlightInfo) =
+      caretIndex == -1 || new TextRange(info.getStartOffset, info.getEndOffset).contains(caretIndex)
+    val infos = myFixture.doHighlighting().asScala
+
+    val warnings = infos.filter(i => StringUtil.isNotEmpty(i.getDescription) && isAroundCaret(i))
+
+    if (shouldPass) {
+      assert(warnings.nonEmpty, "No highlightings found")
+    } else if (warnings.nonEmpty) {
+      failingTestPassed()
+    }
+  }
+
+  protected def checkCaretOffsets(
+    expectedCarets: Seq[Int],
+    actualCarets: Seq[Int] = this.allCaretOffsets,
+    inText: String         = getFile.getText
+  ): Unit =
+    if (expectedCarets.nonEmpty) {
+      def patchTextWithCarets(text: String, caretOffsets: Seq[Int]): String =
+        caretOffsets
+          .sorted(Ordering.Int.reverse)
+          .foldLeft(text)(_.patch(_, "<caret>", 0))
+
+      assertEquals(patchTextWithCarets(inText, expectedCarets), patchTextWithCarets(inText, actualCarets))
+    }
+
   protected def failingTestPassed(): Unit = throw new RuntimeException(failingPassed)
 
   protected def getCurrentCodeStyleSettings: CodeStyleSettings = CodeStyle.getSettings(getProject)
@@ -91,16 +143,34 @@ abstract class ScalaLightCodeInsightFixtureTestAdapter
   private def testHighlighting(virtualFile: VirtualFile): Unit =
     getFixture.testHighlighting(false, false, false, virtualFile)
 
-  protected def changePsiAt(offset: Int): Unit =
-    invokeAndWait {
-      getEditor.getCaretModel.moveToOffset(offset)
-      myFixture.`type`('a')
-      commitDocument()
-      myFixture.performEditorAction(IdeActions.ACTION_EDITOR_BACKSPACE)
-      commitDocument()
-    }
+  protected def changePsiAt(offset: Int): Unit = {
+    val settings             = ScalaApplicationSettings.getInstance()
+    val oldAutoBraceSettings = settings.HANDLE_BLOCK_BRACES_INSERTION_AUTOMATICALLY
+    settings.HANDLE_BLOCK_BRACES_INSERTION_AUTOMATICALLY = false
+    try {
+      typeAndRemoveChar(offset, 'a')
+    } finally settings.HANDLE_BLOCK_BRACES_INSERTION_AUTOMATICALLY = oldAutoBraceSettings
+  }
 
-  private def commitDocument(): Unit = PsiDocumentManager.getInstance(getProject).commitDocument(getEditor.getDocument)
+  protected def typeAndRemoveChar(offset: Int, charToTypeAndRemove: Char): Unit = invokeAndWait {
+    getEditor.getCaretModel.moveToOffset(offset)
+    myFixture.`type`(charToTypeAndRemove)
+    commitDocumentInEditor()
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_BACKSPACE)
+    commitDocumentInEditor()
+  }
+
+  protected def insertAtOffset(offset: Int, text: String): Unit = invokeAndWait {
+    inWriteCommandAction {
+      getEditor.getDocument.insertString(offset, text)
+      commitDocumentInEditor()
+    }(getProject)
+  }
+
+  protected final def commitDocumentInEditor(): Unit =
+    PsiDocumentManager
+      .getInstance(getProject)
+      .commitDocument(getEditor.getDocument)
 }
 
 object ScalaLightCodeInsightFixtureTestAdapter {
@@ -157,5 +227,10 @@ object ScalaLightCodeInsightFixtureTestAdapter {
       val file = root.createChildData(null, className + ".java")
       VfsUtil.saveText(file, normalize(fileText))
     }
+
+    def allCaretOffsets: Seq[Int] =
+      adapter.getFixture.getEditor.getCaretModel.getAllCarets.asScala.iterator
+        .map(_.getOffset)
+        .toSeq
   }
 }

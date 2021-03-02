@@ -1,4 +1,4 @@
-package org.jetbrains.plugins.scala
+package org.jetbrains.plugins.scala.libraryLoaders
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
@@ -13,6 +13,7 @@ import org.jetbrains.plugins.scala.project.{
   ScalaLibraryType,
   template
 }
+import org.jetbrains.plugins.scala.{DependencyManagerBase, ScalaVersion, inWriteAction}
 import org.junit.Assert._
 
 import java.io.File
