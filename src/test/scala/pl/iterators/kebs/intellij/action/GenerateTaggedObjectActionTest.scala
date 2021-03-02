@@ -87,8 +87,7 @@ class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestAda
     assertEquals(expectedTagsFile, getBoatTagsScalaFile.getText)
   }
 
-  // FIXME: this works in real, but not in the test environment
-  def ignoreAddingUUIDToImports(): Unit = {
+  def testAddingUUIDToImports(): Unit = {
     val code = StringUtil.convertLineSeparators(s"""package example
         |
         |import java.util.UUID
@@ -98,17 +97,16 @@ class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestAda
         |case class B${CARET}oat(id: UUID, name: String, length: Int, portAddress: Address)
         |""".stripMargin)
     getFixture.configureFromExistingVirtualFile(saveBoatScalaFile(Some("example"), code))
-    //CodeFoldingManager.getInstance(getProject).buildInitialFoldings(getEditor)
-    //getFixture.testHighlighting(false, false, false, getFile.getVirtualFile)
 
     getFixture.performEditorAction(actionId)
 
     val expectedTagsFile =
       """package example
         |
-        |import java.util.UUID
         |import pl.iterators.kebs.tagged._
         |import pl.iterators.kebs.tag.meta.tagged
+        |
+        |import java.util.UUID
         |
         |@tagged object BoatTags {
         |  trait BoatIdTag
@@ -146,7 +144,6 @@ class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestAda
     assertEquals(expectedCaseClassFile, getFixture.getFile.getText)
   }
 
-
   def testContainers(): Unit = {
     val code = StringUtil.convertLineSeparators(s"""package example
         |case class B${CARET}oat(name: String, alternativeNames: Seq[String], length: Option[Int])
@@ -183,10 +180,7 @@ class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestAda
     assertEquals(expectedCaseClassFile, getFixture.getFile.getText)
   }
 
-  private def saveBoatScalaFile(
-    packageName: Option[String],
-    code: String
-  ): VirtualFile =
+  private def saveBoatScalaFile(packageName: Option[String], code: String): VirtualFile =
     inWriteAction {
       val sourceRoot = LightPlatformTestCase.getSourceRoot
       val packageDirectory = packageName match {
