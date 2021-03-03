@@ -1,6 +1,7 @@
-package org.jetbrains.plugins.scala
+package org.jetbrains.plugins.scala.libraryLoaders
 
 import com.intellij.openapi.module.Module
+import org.jetbrains.plugins.scala.ScalaVersion
 
 /**
   * @author adkozlov

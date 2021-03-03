@@ -5,24 +5,15 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScFunctionDefinition, ScPatternDefinition}
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScObject
 import org.jetbrains.plugins.scala.lang.psi.types.{PhysicalMethodSignature, TypePresentationContext}
-import org.jetbrains.plugins.scala.{IvyManagedLoader, LibraryLoader, ScalaLightCodeInsightFixtureTestAdapter}
-import org.jetbrains.plugins.scala.DependencyDescriptionOps.RichStr
 import org.junit.Assert.fail
+import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestAdapterWithKebs
 
-abstract class MacrosTest extends ScalaLightCodeInsightFixtureTestAdapter {
-  protected val iteratorsOrg = "pl.iterators"
-  protected val kebsVersion  = "1.8.1"
+abstract class MacrosTest extends ScalaLightCodeInsightFixtureTestAdapterWithKebs {
 
   protected var extendedObject: ScObject                                  = _
   implicit protected var typePresentationContext: TypePresentationContext = _
 
   protected def code: String
-
-  override def librariesLoaders: Seq[LibraryLoader] =
-    super.librariesLoaders :+
-      IvyManagedLoader(iteratorsOrg %% "kebs-tagged"      % kebsVersion) :+
-      IvyManagedLoader(iteratorsOrg %% "kebs-tagged-meta" % kebsVersion) :+
-      IvyManagedLoader(iteratorsOrg %% "kebs-macro-utils" % kebsVersion)
 
   override def setUp(): Unit = {
     super.setUp()

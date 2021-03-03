@@ -27,8 +27,7 @@ class TaggedInjectorInjectFunctionsWithValidateTest extends MacrosTest {
        |}
        |""".stripMargin
 
-  //FIXME: 'Negative' (Object creation impossible, since member equals(that: Any): Boolean in scala.Equals is not defined)
-  def ignoreCompile(): Unit =
+  def testCompile(): Unit =
     checkTextHasNoErrors(code)
 
   def testPositiveIntApply(): Unit =
