@@ -3,7 +3,9 @@ ThisBuild / organization := "pl.iterators"
 ThisBuild / organizationName := "Iterators"
 ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
 ThisBuild / intellijPluginName := "kebs-intellij"
-ThisBuild / intellijBuild := "203"
+// List of release versions: https://www.jetbrains.com/intellij-repository/releases
+// List of snapshot versions: https://www.jetbrains.com/intellij-repository/snapshots
+ThisBuild / intellijBuild := "211.7628.21"
 
 lazy val `kebs-intellij` = project
   .in(file("."))
