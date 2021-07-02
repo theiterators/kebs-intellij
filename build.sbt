@@ -22,6 +22,4 @@ lazy val `kebs-intellij` = project
     }
   )
 
-lazy val runner = createRunnerProject(`kebs-intellij`)
-
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
