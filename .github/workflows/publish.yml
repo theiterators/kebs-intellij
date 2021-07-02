@@ -18,5 +18,10 @@ jobs:
         with:
           java-version: "adopt@1.11"
 
+      - name: Package plugin
+        # For some reason packageArtifact needs to be invoked second time
+        # for patching plugin.xml in patchPluginXML task
+        run: sbt clean test packageArtifact && sbt packageArtifact
+
       - name: Publish plugin
-        run: sbt clean test publishPlugin
+        run: sbt publishPlugin

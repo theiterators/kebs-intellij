@@ -23,7 +23,7 @@ You can also install the plugin from the web page: https://plugins.jetbrains.com
 
 Build using sbt:
 ```
-sbt test packageArtifact
+sbt clean test packageArtifact && sbt packageArtifact
 ```
 Plugin jar is located in `target/plugin/kebs-intellij/lib/` directory of the project.
 
