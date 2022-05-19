@@ -153,6 +153,7 @@ private case class CaseClassParameterType(scClassParameter: ScClassParameter) {
 private object CaseClassParameterType {
   private val allowedTypesCanonicalNames = List(
     "_root_.scala.Predef.String",
+    "_root_.java.lang.String",
     "_root_.java.util.UUID",
     "_root_.java.time.DayOfWeek",
     "_root_.java.time.Duration",
@@ -171,7 +172,15 @@ private object CaseClassParameterType {
   )
 
   private val allowedComplexTypesCanonicalNames =
-    List("scala.List", "scala.Seq", "_root_.scala.List", "_root_.scala.Seq", "_root_.scala.Option")
+    List(
+      "scala.List",
+      "scala.Seq",
+      "_root_.scala.List",
+      "_root_.scala.Seq",
+      "_root_.scala.Option",
+      "_root_.scala.collection.immutable.List",
+      "_root_.scala.collection.immutable.Seq"
+    )
 }
 
 private class CaseClassParameter(private val scClass: ScClass, private val ccParameterType: CaseClassParameterType) {
