@@ -1,9 +1,6 @@
 name: Continuous Integration
 
-on:
-  push:
-    tags-ignore:
-      - '**' # We don't want this to run on release
+on: [push]
 
 jobs:
   test:
