@@ -6,9 +6,9 @@ import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScFunctionDefinition
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScObject
 import org.jetbrains.plugins.scala.lang.psi.types.{PhysicalMethodSignature, TypePresentationContext}
 import org.junit.Assert.fail
-import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestAdapterWithKebs
+import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestCaseWithKebs
 
-abstract class MacrosTest extends ScalaLightCodeInsightFixtureTestAdapterWithKebs {
+abstract class MacrosTest extends ScalaLightCodeInsightFixtureTestCaseWithKebs {
 
   protected var extendedObject: ScObject                                  = _
   implicit protected var typePresentationContext: TypePresentationContext = _

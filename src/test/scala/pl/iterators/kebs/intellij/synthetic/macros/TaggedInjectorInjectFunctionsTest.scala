@@ -25,8 +25,8 @@ class TaggedInjectorInjectFunctionsTest extends MacrosTest {
     checkTextHasNoErrors(code)
 
   def testApply(): Unit =
-    assertEquals("def apply(arg: _root_.scala.Predef.String): Name = ???", method("apply").getText)
+    assertEquals("def apply(arg: _root_.java.lang.String): Name = ???", method("apply").getText)
 
   def testFrom(): Unit =
-    assertEquals("def from(arg: _root_.scala.Predef.String): Name = ???", method("from").getText)
+    assertEquals("def from(arg: _root_.java.lang.String): Name = ???", method("from").getText)
 }

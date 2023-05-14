@@ -6,9 +6,9 @@ import com.intellij.psi.PsiFile
 import com.intellij.testFramework.LightPlatformTestCase
 import org.jetbrains.plugins.scala.inWriteAction
 import org.junit.Assert.{assertEquals, assertNotNull}
-import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestAdapterWithKebs
+import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestCaseWithKebs
 
-class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestAdapterWithKebs {
+class GenerateTaggedObjectActionTest extends ScalaLightCodeInsightFixtureTestCaseWithKebs {
 
   private val actionId = "kebs.tagged-object-generate"
 

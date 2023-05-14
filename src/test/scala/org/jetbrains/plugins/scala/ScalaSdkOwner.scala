@@ -9,8 +9,8 @@ trait ScalaSdkOwner extends Test with InjectableJdk with ScalaVersionProvider wi
   import ScalaSdkOwner._
 
   @deprecatedOverriding(
-    """Consider using supportedIn instead to run with the latest possible scala version.
-      |Override this method only if you want to run test with a specific version which is for some reason not listed in ScalaSdkOwner.allTestVersion""".stripMargin
+    message = "Consider using supportedIn instead to run with the latest possible scala version.\n" +
+      "Override this method only if you want to run test with a specific version which is for some reason not listed in ScalaSdkOwner.allTestVersion"
   )
   override implicit def version: ScalaVersion = {
     val supportedVersions = allTestVersions.filter(supportedIn)
@@ -58,21 +58,19 @@ trait ScalaSdkOwner extends Test with InjectableJdk with ScalaVersionProvider wi
 
 object ScalaSdkOwner {
 
-  private val Scala3Versions = Seq(LatestScalaVersions.Dotty, LatestScalaVersions.Scala_3_0)
-
   // todo: eventually move to version Scala_2_13
   //       (or better, move ScalaLanguageLevel.getDefault to Scala_2_13 and use ScalaVersion.default again)
   //       for now just use defaultVersionOverride with Some(preferableSdkVersion) for test-(base)classes
   //       that should already work in newest version (SCL-15634)
-  val defaultSdkVersion: ScalaVersion    = LatestScalaVersions.Scala_2_10 // ScalaVersion.default
+  val defaultSdkVersion: ScalaVersion = LatestScalaVersions.Scala_2_10 // ScalaVersion.default
   val preferableSdkVersion: ScalaVersion = LatestScalaVersions.Scala_2_13
   val allTestVersions: SortedSet[ScalaVersion] = {
     val allScalaMinorVersions = for {
-      latestVersion <- LatestScalaVersions.all.filterNot(Scala3Versions.contains)
-      minor         <- 0 to latestVersion.minorSuffix.toInt
+      latestVersion <- LatestScalaVersions.all
+      minor <- 0 to latestVersion.minorSuffix.toInt
     } yield latestVersion.withMinor(minor)
 
-    SortedSet(allScalaMinorVersions ++ Scala3Versions: _*)
+    SortedSet.from(allScalaMinorVersions)
   }
 
   private def selectVersion(wantedVersion: ScalaVersion, possibleVersions: SortedSet[ScalaVersion]): ScalaVersion =

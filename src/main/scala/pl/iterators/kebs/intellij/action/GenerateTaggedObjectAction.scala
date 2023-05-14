@@ -1,21 +1,26 @@
 package pl.iterators.kebs.intellij.action
 
-import com.intellij.openapi.actionSystem.{AnAction, AnActionEvent, CommonDataKeys}
+import com.intellij.openapi.actionSystem.{ActionUpdateThread, AnAction, AnActionEvent, CommonDataKeys}
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.text.Strings.{capitalize, unpluralize}
-import com.intellij.psi.codeStyle.JavaCodeStyleManager
-import com.intellij.psi.{PsiDirectory, PsiElement, PsiFileFactory, PsiPrimitiveType}
+import com.intellij.psi.codeStyle.{CodeStyleManager, JavaCodeStyleManager}
+import com.intellij.psi._
 import org.jetbrains.plugins.scala.ScalaLanguage
+import org.jetbrains.plugins.scala.editor.importOptimizer.ScalaImportOptimizer
+import org.jetbrains.plugins.scala.extensions.ObjectExt
+import org.jetbrains.plugins.scala.lang.psi.api.ScalaFile
 import org.jetbrains.plugins.scala.lang.psi.api.base.types.ScParameterizedTypeElement
 import org.jetbrains.plugins.scala.lang.psi.api.statements.params.ScClassParameter
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScClass
 import org.jetbrains.plugins.scala.lang.psi.impl.ScalaPsiElementFactory
 import org.jetbrains.plugins.scala.lang.psi.types.{ScParameterizedType, ScType}
-import org.jetbrains.plugins.scala.project.ProjectContext
+import org.jetbrains.plugins.scala.project.{ProjectContext, ScalaFeatures}
 
 class GenerateTaggedObjectAction extends AnAction {
+
+  override def getActionUpdateThread: ActionUpdateThread = ActionUpdateThread.BGT
 
   override def update(actionEvent: AnActionEvent): Unit = {
     val currentElement = actionEvent.getData(CommonDataKeys.PSI_ELEMENT)
@@ -27,19 +32,19 @@ class GenerateTaggedObjectAction extends AnAction {
     val currentElement = actionEvent.getData(CommonDataKeys.PSI_ELEMENT)
     if (shouldBeVisible(currentElement)) {
       val scClass       = currentElement.asInstanceOf[ScClass]
+      val project       = scClass.getProject
       val tagsClassName = s"${scClass.getName()}Tags"
       val tagsFileName  = s"$tagsClassName.scala"
       Option(scClass.getContainingFile.getContainingDirectory.findFile(tagsFileName)) match {
         case None =>
-          WriteCommandAction.runWriteCommandAction(scClass.getProject, new Runnable() {
-            override def run(): Unit = {
-              val ccParamsToTag    = caseClassParametersToTag(scClass)
-              val tagsFileContent  = generateTaggedObject(tagsClassName, scClass.getPath, ccParamsToTag)
-              val packageDirectory = scClass.getContainingFile.getContainingDirectory
-              writeTagsFile(scClass.getProject, tagsFileName, packageDirectory, tagsFileContent)
-              changeTypesInCaseClass(scClass, tagsClassName, ccParamsToTag)
-            }
-          })
+          val ccParamsToTag    = caseClassParametersToTag(scClass)
+          val tagsFileContent  = generateTaggedObject(tagsClassName, scClass.getPath, ccParamsToTag)
+          val packageDirectory = scClass.getContainingFile.getContainingDirectory
+          runWriteCommand(project, writeTagsFile(project, tagsFileName, packageDirectory, tagsFileContent))
+          runWriteCommand(project, changeTypesInCaseClass(scClass, tagsClassName, ccParamsToTag))
+          Option(scClass.getContainingFile.getContainingDirectory.findFile(tagsFileName)).foreach { tagsFile =>
+            runWriteCommand(project, shortenClassReferences(project, tagsFile))
+          }
         case Some(f) =>
           val editor = actionEvent.getData(CommonDataKeys.EDITOR)
           JBPopupFactory
@@ -63,6 +68,9 @@ class GenerateTaggedObjectAction extends AnAction {
           .filter(_.shouldBeTagged)
       )
       .map(caseClassParameterType => new CaseClassParameter(scClass, caseClassParameterType))
+
+  private def runWriteCommand(project: Project, command: => Unit): Unit =
+    WriteCommandAction.runWriteCommandAction(project, "Generate @tagged object", "GenerateGroup", () => command)
 
   private def generateTaggedObject(
     name: String,
@@ -93,22 +101,22 @@ class GenerateTaggedObjectAction extends AnAction {
     name: String,
     packageDirectory: PsiDirectory,
     tagsFileContent: String
-  ): PsiElement =
+  ): Unit =
     packageDirectory.add {
-      val tagsFile = PsiFileFactory
+      PsiFileFactory
         .getInstance(project)
         .createFileFromText(name, ScalaLanguage.INSTANCE, tagsFileContent)
-      shortenClassReferences(project, tagsFile)
     }
 
   private def changeTypesInCaseClass(
     scClass: ScClass,
     tagsName: String,
     ccParamsToTag: Seq[CaseClassParameter]
-  ): PsiElement = {
+  ): Unit = {
     ccParamsToTag.foreach { caseClassParameter =>
       val taggedType = ScalaPsiElementFactory.createTypeElementFromText(
-        s"$tagsName.${caseClassParameter.typeAliasName}"
+        s"$tagsName.${caseClassParameter.typeAliasName}",
+        ScalaFeatures.default
       )(ProjectContext.fromPsi(scClass))
       caseClassParameter.scClassParameter.typeElement match {
         case Some(parameterizedTypeElement: ScParameterizedTypeElement) =>
@@ -117,11 +125,28 @@ class GenerateTaggedObjectAction extends AnAction {
         case _                 => ()
       }
     }
+
     shortenClassReferences(scClass.getProject, scClass)
+    organizeImports(scClass.getContainingFile)
+    unblockDocumentAndReformatCode(scClass)
   }
 
-  private def shortenClassReferences(project: Project, element: PsiElement): PsiElement =
+  private def shortenClassReferences(project: Project, element: PsiElement): Unit =
     JavaCodeStyleManager.getInstance(project).shortenClassReferences(element)
+
+  private def organizeImports(file: PsiFile): Unit =
+    file.asOptionOf[ScalaFile].foreach { file =>
+      ScalaImportOptimizer.findOptimizerFor(file).foreach { optimizer =>
+        optimizer.processFile(file).run()
+      }
+    }
+
+  private def unblockDocumentAndReformatCode(scClass: ScClass): Unit = {
+    val project         = scClass.getProject
+    val documentManager = PsiDocumentManager.getInstance(project)
+    documentManager.doPostponedOperationsAndUnblockDocument(documentManager.getDocument(scClass.getContainingFile))
+    CodeStyleManager.getInstance(project).reformat(scClass.getContainingFile)
+  }
 }
 
 private case class CaseClassParameterType(scClassParameter: ScClassParameter) {
@@ -216,5 +241,12 @@ private class CaseClassParameter(private val scClass: ScClass, private val ccPar
 
 private object CaseClassParameter {
   private val allowedComplexPluralTypesCanonicalNames =
-    List("scala.List", "scala.Seq", "_root_.scala.List", "_root_.scala.Seq")
+    List(
+      "scala.List",
+      "scala.Seq",
+      "_root_.scala.List",
+      "_root_.scala.Seq",
+      "_root_.scala.collection.immutable.List",
+      "_root_.scala.collection.immutable.Seq"
+    )
 }

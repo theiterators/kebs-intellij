@@ -4,24 +4,46 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.testFramework.PsiTestUtil
 import org.jetbrains.plugins.scala.DependencyManagerBase.{DependencyDescription, ResolvedDependency}
-import org.jetbrains.plugins.scala.{DependencyManager, DependencyManagerBase, ScalaVersion}
+import org.jetbrains.plugins.scala.{DependencyManagerBase, ScalaVersion, TestDependencyManager}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 
-case class IvyManagedLoader(dependencies: DependencyDescription*) extends LibraryLoader {
-  protected lazy val dependencyManager: DependencyManagerBase = DependencyManager
+abstract class IvyManagedLoaderBase extends LibraryLoader {
+
+  protected def dependencyManager: DependencyManagerBase
+  protected def dependencies(scalaVersion: ScalaVersion): Seq[DependencyDescription]
+  protected def cache: mutable.Map[Seq[DependencyDescription], Seq[ResolvedDependency]]
 
   override def init(implicit module: Module, version: ScalaVersion): Unit = {
-    val resolved = IvyManagedLoader.cache.getOrElseUpdate(dependencies, dependencyManager.resolve(dependencies: _*))
+    val deps     = dependencies(version)
+    val resolved = cache.getOrElseUpdate(deps, dependencyManager.resolve(deps: _*))
     resolved.foreach { resolved =>
-      VfsRootAccess.allowRootAccess(resolved.file.getCanonicalPath): @nowarn("cat=deprecation")
+      VfsRootAccess.allowRootAccess(module, resolved.file.getCanonicalPath): @nowarn("cat=deprecation")
       PsiTestUtil.addLibrary(module, resolved.info.toString, resolved.file.getParent, resolved.file.getName)
     }
   }
 }
 
+final class IvyManagedLoader private (
+  override protected val dependencyManager: DependencyManagerBase,
+  _dependencies: DependencyDescription*)
+    extends IvyManagedLoaderBase {
+
+  override protected def cache: mutable.Map[Seq[DependencyDescription], Seq[ResolvedDependency]] =
+    IvyManagedLoader.cache
+
+  override protected def dependencies(unused: ScalaVersion): Seq[DependencyDescription] =
+    _dependencies
+}
+
 object IvyManagedLoader {
 
   private val cache: mutable.Map[Seq[DependencyDescription], Seq[ResolvedDependency]] = mutable.Map()
+
+  def apply(dependencies: DependencyDescription*): IvyManagedLoader =
+    new IvyManagedLoader(new TestDependencyManager, dependencies: _*)
+
+  def apply(dependencyManager: DependencyManagerBase, dependencies: DependencyDescription*): IvyManagedLoader =
+    new IvyManagedLoader(dependencyManager, dependencies: _*)
 }

@@ -1,11 +1,24 @@
-ThisBuild / scalaVersion := "2.13.4"
+ThisBuild / scalaVersion := "2.13.10"
 ThisBuild / organization := "pl.iterators"
 ThisBuild / organizationName := "Iterators"
 ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
 ThisBuild / intellijPluginName := "kebs-intellij"
 // List of release versions: https://www.jetbrains.com/intellij-repository/releases
 // List of snapshot versions: https://www.jetbrains.com/intellij-repository/snapshots
-ThisBuild / intellijBuild := "211.7628.21"
+ThisBuild / intellijBuild := "223.7571.182"
+
+ThisBuild / scalacOptions ++= Seq(
+  "-explaintypes",
+  "-deprecation",
+  "-unchecked",
+  "-feature",
+  "-Xlint:serial",
+  "-Ymacro-annotations",
+  "-Xfatal-warnings",
+  "-language:implicitConversions",
+  "-language:reflectiveCalls",
+  "-language:existentials"
+)
 
 lazy val `kebs-intellij` = project
   .in(file("."))
@@ -16,7 +29,6 @@ lazy val `kebs-intellij` = project
       "org.intellij.scala".toPlugin
     ),
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test,
-    scalacOptions += "-deprecation",
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-v"),
     patchPluginXml := pluginXmlOptions { xml =>
       xml.version = version.value
