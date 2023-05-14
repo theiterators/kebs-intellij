@@ -72,10 +72,10 @@ jobs:
           ide-versions: |
             ideaIC:2020.3.4
             ideaIU:2020.3.4
-            ideaIC:2021.3
-            ideaIU:2021.3
-            ideaIC:LATEST-EAP-SNAPSHOT
-            ideaIU:LATEST-EAP-SNAPSHOT
+            ideaIC:2021.3.3
+            ideaIU:2021.3.3
+            ideaIC:2022.2.5
+            ideaIU:2022.2.5
           failure-levels: |
             COMPATIBILITY_PROBLEMS
             INVALID_PLUGIN
