@@ -16,7 +16,7 @@ jobs:
       - name: Set up Scala
         uses: olafurpg/setup-scala@v14
         with:
-          java-version: "adopt@1.11"
+          java-version: "openjdk@1.17.0"
 
       - name: Cache sbt
         uses: actions/cache@v3
@@ -45,7 +45,7 @@ jobs:
       - name: Set up Scala
         uses: olafurpg/setup-scala@v14
         with:
-          java-version: "adopt@1.11"
+          java-version: "openjdk@1.17.0"
 
       - name: Cache sbt
         uses: actions/cache@v3
@@ -70,12 +70,14 @@ jobs:
         with:
           plugin-location: 'target/plugin/kebs-intellij/lib/kebs-intellij.jar'
           ide-versions: |
-            ideaIC:2020.3.4
-            ideaIU:2020.3.4
-            ideaIC:2021.3.3
-            ideaIU:2021.3.3
-            ideaIC:2022.2.5
-            ideaIU:2022.2.5
+            ideaIC:2022.3
+            ideaIU:2022.3
+            ideaIC:2022.3.3
+            ideaIU:2022.3.3
+            ideaIC:2023.1.2
+            ideaIU:2023.1.2
+            ideaIC:232-EAP-SNAPSHOT
+            ideaIU:232-EAP-SNAPSHOT
           failure-levels: |
             COMPATIBILITY_PROBLEMS
             INVALID_PLUGIN

@@ -2,7 +2,6 @@ package pl.iterators.kebs.intellij.synthetic.macros
 
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.LightPlatformTestCase
-import org.jetbrains.plugins.scala.ScalaLightCodeInsightFixtureTestAdapter.normalize
 import org.jetbrains.plugins.scala.inWriteAction
 
 class TaggedInjectorInjectTaggedTypeObjectWithTypeFromPackageObjectTest extends MacrosTest {
@@ -42,12 +41,12 @@ class TaggedInjectorInjectTaggedTypeObjectWithTypeFromPackageObjectTest extends 
     super.setUp()
     inWriteAction {
       val testSourceRoot = LightPlatformTestCase.getSourceRoot.createChildDirectory(null, "test")
-      VfsUtil.saveText(testSourceRoot.createChildData(null, "package.scala"), normalize(packageObject))
+      VfsUtil.saveText(testSourceRoot.createChildData(null, "package.scala"), packageObject)
       VfsUtil.saveText(
         testSourceRoot
           .createChildDirectory(null, "example")
           .createChildData(null, "TaggedExample.scala"),
-        normalize(taggedExample)
+        taggedExample
       )
     }
   }

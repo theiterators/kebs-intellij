@@ -16,7 +16,7 @@ jobs:
       - name: Set up Scala
         uses: olafurpg/setup-scala@v14
         with:
-          java-version: "adopt@1.11"
+          java-version: "openjdk@1.17.0"
 
       - name: Package plugin
         # For some reason packageArtifact needs to be invoked second time

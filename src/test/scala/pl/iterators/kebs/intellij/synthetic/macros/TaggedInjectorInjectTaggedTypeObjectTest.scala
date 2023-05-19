@@ -24,8 +24,8 @@ class TaggedInjectorInjectTaggedTypeObjectTest extends MacrosTest {
 
   def testNameObject(): Unit =
     assertEquals("""object Name {
-        |  def apply(arg: _root_.scala.Predef.String): Name = ???
-        |  def from(arg: _root_.scala.Predef.String): Name = ???
+        |  def apply(arg: _root_.java.lang.String): Name = ???
+        |  def from(arg: _root_.java.lang.String): Name = ???
         |}""".stripMargin, innerObject("Name").getText)
 
   def testIdObject(): Unit =

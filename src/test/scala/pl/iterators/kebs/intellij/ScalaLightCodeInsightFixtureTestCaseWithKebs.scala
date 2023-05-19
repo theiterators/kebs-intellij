@@ -3,9 +3,9 @@ package pl.iterators.kebs.intellij
 import org.jetbrains.plugins.scala.DependencyManagerBase.RichStr
 import org.jetbrains.plugins.scala.ScalaSdkOwner.preferableSdkVersion
 import org.jetbrains.plugins.scala.libraryLoaders.{IvyManagedLoader, LibraryLoader}
-import org.jetbrains.plugins.scala.{ScalaLightCodeInsightFixtureTestAdapter, ScalaVersion}
+import org.jetbrains.plugins.scala.{ScalaLightCodeInsightFixtureTestCase, ScalaVersion}
 
-trait ScalaLightCodeInsightFixtureTestAdapterWithKebs extends ScalaLightCodeInsightFixtureTestAdapter {
+trait ScalaLightCodeInsightFixtureTestCaseWithKebs extends ScalaLightCodeInsightFixtureTestCase {
 
   private val iteratorsOrg = "pl.iterators"
   private val kebsVersion  = "1.8.1"
