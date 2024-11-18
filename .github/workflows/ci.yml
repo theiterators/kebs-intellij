@@ -72,8 +72,6 @@ jobs:
           ide-versions: |
             ideaIC:2023.3.1
             ideaIU:2023.3.1
-            ideaIC:2024.2
-            ideaIU:2024.2
             ideaIC:2024.3
             ideaIU:2024.3
           failure-levels: |
