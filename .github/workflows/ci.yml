@@ -1,6 +1,6 @@
 name: Continuous Integration
 
-on: [push]
+on: [ push ]
 
 jobs:
   test:
@@ -74,6 +74,8 @@ jobs:
             ideaIU:2023.3.1
             ideaIC:2024.3
             ideaIU:2024.3
+            ideaIC:2025.1
+            ideaIU:2025.1
           failure-levels: |
             COMPATIBILITY_PROBLEMS
             INVALID_PLUGIN
