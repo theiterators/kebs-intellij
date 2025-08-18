@@ -76,6 +76,8 @@ jobs:
             ideaIU:2024.3
             ideaIC:2025.1
             ideaIU:2025.1
+            ideaIC:2025.2
+            ideaIU:2025.2
           failure-levels: |
             COMPATIBILITY_PROBLEMS
             INVALID_PLUGIN
