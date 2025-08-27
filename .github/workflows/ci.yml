@@ -71,8 +71,6 @@ jobs:
           plugin-location: 'target/plugin/kebs-intellij/lib/kebs-intellij.jar'
           verifier-version: '1.384'
           ide-versions: |
-            ideaIC:2023.3.1
-            ideaIC:2024.3
             ideaIC:2025.2
           failure-levels: |
             COMPATIBILITY_PROBLEMS
