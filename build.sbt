@@ -30,7 +30,6 @@ lazy val `kebs-intellij` = project
       "org.intellij.intelliLang".toPlugin
     ),
     libraryDependencies ++= Seq(
-      "junit"             % "junit"             % "4.13.2" % Test,
       "com.github.sbt"    % "junit-interface"   % "0.13.3" % Test,
       "org.junit.jupiter" % "junit-jupiter-api" % "5.13.4" % Test
     ),
