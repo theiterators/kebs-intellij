@@ -4,7 +4,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.LightPlatformTestCase
-import org.jetbrains.plugins.scala.inWriteAction
+import org.jetbrains.plugins.scala.extensions.inWriteAction
 import org.junit.Assert.{assertEquals, assertNotNull}
 import pl.iterators.kebs.intellij.ScalaLightCodeInsightFixtureTestCaseWithKebs
 

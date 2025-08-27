@@ -2,7 +2,7 @@ package pl.iterators.kebs.intellij.synthetic.macros
 
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.LightPlatformTestCase
-import org.jetbrains.plugins.scala.inWriteAction
+import org.jetbrains.plugins.scala.extensions.inWriteAction
 
 class TaggedInjectorInjectTaggedTypeObjectWithTypeFromPackageObjectTest extends MacrosTest {
 

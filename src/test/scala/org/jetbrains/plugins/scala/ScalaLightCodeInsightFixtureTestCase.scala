@@ -1,8 +1,8 @@
 package org.jetbrains.plugins.scala
 
 import com.intellij.application.options.CodeStyle
-import com.intellij.codeInsight.daemon.impl.HighlightInfo
-import com.intellij.codeInsight.folding.CodeFoldingManager
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.codeInsight.daemon.impl.{DaemonCodeAnalyzerImpl, HighlightInfo}
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.module.Module
@@ -14,16 +14,23 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
 import com.intellij.psi.codeStyle.{CodeStyleSettings, CommonCodeStyleSettings}
+import com.intellij.testFramework.TestIndexingModeSupporter.IndexingMode
 import com.intellij.testFramework.fixtures.{JavaCodeInsightTestFixture, LightJavaCodeInsightFixtureTestCase}
-import com.intellij.testFramework.{EditorTestUtil, LightProjectDescriptor}
+import com.intellij.testFramework.{EditorTestUtil, IdeaTestUtil, LightProjectDescriptor}
+import com.intellij.util.lang.JavaVersion
+import org.intellij.lang.annotations.Language
 import org.jetbrains.jps.model.java.JavaSourceRootType
 import org.jetbrains.plugins.scala.extensions.StringExt
 import org.jetbrains.plugins.scala.lang.formatting.settings.ScalaCodeStyleSettings
-import org.jetbrains.plugins.scala.libraryLoaders.{LibraryLoader, ScalaSDKLoader, SmartJDKLoader, SourcesLoader}
-import org.junit.Assert.assertNotNull
+import org.jetbrains.plugins.scala.libraryLoaders.{LibraryLoader, ScalaSDKLoader, SourcesLoader}
+import org.jetbrains.plugins.scala.project.settings.ScalaCompilerConfiguration
+import org.junit.Assert
+import org.junit.Assert.fail
 
+import java.nio.file.Path
 import scala.jdk.CollectionConverters._
 
+//TODO: try to remove EditorTestUtil.buildInitialFoldingsInBackground(getEditor) and see if tests pass?
 abstract class ScalaLightCodeInsightFixtureTestCase
     extends LightJavaCodeInsightFixtureTestCase
     with ScalaSdkOwner
@@ -34,109 +41,166 @@ abstract class ScalaLightCodeInsightFixtureTestCase
   protected val START = EditorTestUtil.SELECTION_START_TAG
   protected val END   = EditorTestUtil.SELECTION_END_TAG
 
+  // var is needed to pick up updated java fixture in setUp
+  private[this] var _scalaFixture: ScalaCodeInsightTestFixture = _
+  protected def scalaFixture: ScalaCodeInsightTestFixture      = _scalaFixture
+
   override def getTestDataPath: String = TestUtils.getTestDataPath + "/"
 
-  protected def sourceRootPath: String = null
+  protected def sourceRootPath: Path = null
+
+  //start section: indexing mode setup
+  private[this] var indexingMode: IndexingMode = IndexingMode.SMART
+
+  // SCL-21849
+  override def getIndexingMode: IndexingMode             = indexingMode
+  override def setIndexingMode(mode: IndexingMode): Unit = indexingMode = mode
+  //end section: indexing mode setup
 
   //start section: project libraries configuration
   protected def loadScalaLibrary: Boolean = true
 
-  protected def includeReflectLibrary: Boolean = false
-
-  protected def includeCompilerAsLibrary: Boolean = false
+  protected def includeReflectLibrary: Boolean         = false
+  protected def includeCompilerAsLibrary: Boolean      = false
+  protected def includeScalaLibraryFilesInSdk: Boolean = true
+  protected def includeScalaLibrarySources: Boolean    = true
 
   protected def additionalLibraries: Seq[LibraryLoader] = Seq.empty
 
   override protected def librariesLoaders: Seq[LibraryLoader] = {
-    val scalaSdkLoader = ScalaSDKLoader(includeReflectLibrary, includeCompilerAsLibrary)
+    val scalaSdkLoader = ScalaSDKLoader(
+      includeScalaReflectIntoCompilerClasspath = includeReflectLibrary,
+      includeScalaCompilerIntoLibraryClasspath = includeCompilerAsLibrary,
+      includeScalaLibraryFilesInSdk            = includeScalaLibraryFilesInSdk,
+      includeScalaLibrarySources               = includeScalaLibrarySources
+    )
     //note: do we indeed need to register it as libraries?
     // shouldn't source roots be registered just as source roots?
-    val sourceLoaders     = Option(sourceRootPath).map(SourcesLoader).toSeq
+    val sourceLoaders     = Option(sourceRootPath).map(f => SourcesLoader(f.toAbsolutePath.toString)).toSeq
     val additionalLoaders = additionalLibraries
     scalaSdkLoader +: sourceLoaders :++ additionalLoaders
   }
   //end section: project libraries configuration
 
   //start section: project descriptor
-  protected def sharedProjectToken: SharedTestProjectToken = SharedTestProjectToken.DoNotShare
+  protected def sharedProjectToken: SharedTestProjectToken =
+    SharedTestProjectToken.ByTestClassAndScalaSdkAndProjectLibraries(this)
 
-  override protected def getProjectDescriptor: LightProjectDescriptor =
-    new ScalaLightProjectDescriptor(sharedProjectToken) {
-      override def tuneModule(module: Module, project: Project): Unit =
-        afterSetUpProject(project, module)
+  protected def projectJdk: Sdk = IdeaTestUtil.getMockJdk(JavaVersion.compose(17))
 
-      override def getSdk: Sdk = SmartJDKLoader.getOrCreateJDK()
+  override protected def getProjectDescriptor: LightProjectDescriptor = new MyProjectDescriptor()
 
-      override def getSourceRootType: JavaSourceRootType =
-        if (placeSourceFilesInTestContentRoot)
-          JavaSourceRootType.TEST_SOURCE
-        else
-          JavaSourceRootType.SOURCE
-    }
+  protected class MyProjectDescriptor extends ScalaLightProjectDescriptor(sharedProjectToken) {
+
+    override def tuneModule(module: Module, project: Project): Unit =
+      afterSetUpProject(project, module)
+
+    override def getSdk: Sdk = projectJdk
+
+    override def getSourceRootType: JavaSourceRootType =
+      if (placeSourceFilesInTestContentRoot)
+        JavaSourceRootType.TEST_SOURCE
+      else
+        JavaSourceRootType.SOURCE
+  }
 
   protected def placeSourceFilesInTestContentRoot: Boolean = false
 
-  protected def afterSetUpProject(project: Project, module: Module): Unit = {
-    Registry.get("ast.loading.filter").setValue(true, getTestRootDisposable)
-
+  /**
+    * @note If you are overriding this method, most likely, the light project cannot be shared between subsequent
+    *       test invocations. Look into also overriding [[sharedProjectToken]].
+    */
+  private def afterSetUpProject(project: Project, module: Module): Unit = {
+    if (sourceRootPath ne null) {
+      SourceRootTestUtil.addSourceRoot(module, sourceRootPath)
+    }
     setUpLibraries(module)
   }
 
   override def setUpLibraries(implicit module: Module): Unit =
     if (loadScalaLibrary) {
-      myFixture.allowTreeAccessForAllFiles()
       super.setUpLibraries(module)
+
+      val compilerOptions = additionalCompilerOptions
+      if (compilerOptions.nonEmpty) {
+        addCompilerOptions(module, compilerOptions)
+      }
     }
+
+  protected def additionalCompilerOptions: Seq[String] = Nil
+
+  private def addCompilerOptions(module: Module, options: Seq[String]): Unit = {
+    val compilerConfiguration = ScalaCompilerConfiguration.instanceIn(module.getProject)
+
+    val settings = compilerConfiguration.settingsForHighlighting(module) match {
+      case Seq(s) => s
+      case _ =>
+        Assert.fail("expected single settings for module").asInstanceOf[Nothing]
+    }
+
+    val newSettings =
+      if (options.forall(settings.additionalCompilerOptions.contains)) settings
+      else settings.copy(additionalCompilerOptions = settings.additionalCompilerOptions ++ options)
+    compilerConfiguration.configureSettingsForModule(module, "unit tests", newSettings)
+  }
   //end section: project descriptor
 
   override protected def setUp(): Unit = {
-    TestUtils.optimizeSearchingForIndexableFiles()
+    // Suppress missing template exceptions.
+    sys.props.put("ide.skip.plugin.templates.registered.check", true.toString)
+
+    // initialize indexing mode before java test fixture in super.setUp()
+    /** see also [[com.intellij.testFramework.fixtures.JavaIndexingModeCodeInsightTestFixture]] */
+    indexingMode = IndexingMode.SMART
+
     super.setUp()
-    TestUtils.disableTimerThread()
+
+    // pick up updated java fixture after super.setUp()
+    _scalaFixture = new ScalaCodeInsightTestFixture(getFixture)
+
+    // SCL-21849
+    if (getIndexingMode != IndexingMode.SMART) {
+      val a = DaemonCodeAnalyzer.getInstance(getProject()) match {
+        case impl: DaemonCodeAnalyzerImpl => Some(impl)
+        case _                            => None
+      }
+      a.foreach(_.mustWaitForSmartMode(false, getTestRootDisposable))
+    }
+
+    Registry.get("ast.loading.filter").setValue(true, getTestRootDisposable)
   }
 
   override protected def tearDown(): Unit = {
     disposeLibraries(getModule)
     super.tearDown()
+    sys.props.put("ide.skip.plugin.templates.registered.check", false.toString)
   }
 
   //start section: helper methods
-  protected def configureFromFileText(fileText: String): PsiFile =
-    configureFromFileText(ScalaFileType.INSTANCE, fileText)
+  protected final def configureFromFileText(fileText: String): PsiFile = scalaFixture.configureFromFileText(fileText)
+  protected final def configureFromFileText(fileType: FileType, fileText: String): PsiFile =
+    scalaFixture.configureFromFileText(fileType, fileText)
+  protected final def configureFromFileTextWithSomeName(fileType: String, fileText: String): PsiFile =
+    scalaFixture.configureFromFileTextWithSomeName(fileType, fileText)
+  protected final def configureFromFileText(fileName: String, fileText: String): PsiFile =
+    scalaFixture.configureFromFileText(fileName, fileText)
+  protected final def openEditorAtOffset(startOffset: Int): Editor = scalaFixture.openEditorAtOffset(startOffset)
 
-  protected def configureFromFileText(fileType: FileType, fileText: String): PsiFile = {
-    val file = myFixture.configureByText(fileType, fileText.stripMargin.withNormalizedSeparator.trim)
-    assertNotNull(file)
-    file
-  }
-
-  protected def configureFromFileTextWithSomeName(fileType: String, fileText: String): PsiFile = {
-    val file = myFixture.configureByText("Test." + fileType, fileText.withNormalizedSeparator)
-    assertNotNull(file)
-    file
-  }
-
-  protected def configureFromFileText(fileName: String, fileText: String): PsiFile = {
-    val file = myFixture.configureByText(fileName: String, fileText.withNormalizedSeparator)
-    assertNotNull(file)
-    file
-  }
-
-  protected def openEditorAtOffset(startOffset: Int): Editor = {
-    import com.intellij.openapi.fileEditor.{FileEditorManager, OpenFileDescriptor}
-    val project       = getProject
-    val editorManager = FileEditorManager.getInstance(project)
-    val vFile         = getFile.getVirtualFile
-    val editor        = editorManager.openTextEditor(new OpenFileDescriptor(project, vFile, startOffset), false)
-    editor
-  }
+  protected final def configureScalaFromFileText(@Language("Scala") fileText: String): PsiFile =
+    scalaFixture.configureFromFileText(fileText)
+  protected final def configureScala3FromFileText(@Language("Scala 3") fileText: String): PsiFile =
+    scalaFixture.configureFromFileText(fileText)
+  protected final def addScalaFileToProject(relativePath: String, @Language("Scala") fileText: String): PsiFile =
+    myFixture.addFileToProject(relativePath, fileText)
   //end section: helper methods
 
+  //TODO: consider extracting implementation body to ScalaCodeInsightTestFixture
+  // or crete a similar fixture which would be more specific for highlighting
   //start section: check errors
   protected def checkTextHasNoErrors(text: String): Unit = {
     myFixture.configureByText(ScalaFileType.INSTANCE, text)
 
-    CodeFoldingManager.getInstance(getProject).buildInitialFoldings(getEditor)
+    //EditorTestUtil.buildInitialFoldingsInBackground(getEditor)
 
     def doTestHighlighting(virtualFile: VirtualFile): Unit =
       myFixture.testHighlighting(false, false, false, virtualFile)
@@ -167,7 +231,12 @@ abstract class ScalaLightCodeInsightFixtureTestCase
     val warnings = infos.filter(i => StringUtil.isNotEmpty(i.getDescription) && isAroundCaret(i))
 
     if (shouldPass) {
-      assert(warnings.nonEmpty, "No highlightings found")
+      if (warnings.isEmpty) {
+        val message =
+          if (infos.isEmpty) "No highlightings found"
+          else s"No matching highlightings found. All highlightings:\n${infos.map(_.toString).mkString("\n")}"
+        fail(message)
+      }
     } else if (warnings.nonEmpty) {
       throw new RuntimeException(failingPassed)
     }

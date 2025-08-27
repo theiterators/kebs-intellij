@@ -1,7 +1,7 @@
 package org.jetbrains.plugins.scala
 
 import com.intellij.openapi.module.Module
-import junit.framework.Test
+import _root_.junit.framework.Test
 import org.jetbrains.plugins.scala.libraryLoaders.LibraryLoader
 
 import scala.collection.mutable

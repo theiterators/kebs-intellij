@@ -19,14 +19,13 @@ import scala.annotation.nowarn
 
 case class InternalJDKLoader() extends SmartJDKLoader() {
   //noinspection ScalaDeprecation
-  override protected def createSdkInstance(): Sdk = {
+  override protected def createSdkInstance(): Sdk =
     JavaAwareProjectJdkTableImpl.getInstanceEx.getInternalJdk: @nowarn("cat=deprecation")
-  }
 }
 
 /**
- * Consider using this instead of HeavyJDKLoader if you don't need java interop in your tests
- */
+  * Consider using this instead of HeavyJDKLoader if you don't need java interop in your tests
+  */
 case class MockJDKLoader(languageLevel: LanguageLevel = LanguageLevel.JDK_11) extends SmartJDKLoader() {
   override protected def createSdkInstance(): Sdk = IdeaTestUtil.getMockJdk(languageLevel.toJavaVersion)
 }
@@ -38,9 +37,8 @@ case class HeavyJDKLoader(languageLevel: LanguageLevel = LanguageLevel.JDK_11) e
 abstract class SmartJDKLoader() extends LibraryLoader {
   private lazy val instance: Sdk = createSdkInstance()
 
-  override def init(implicit module: Module, version: ScalaVersion): Unit = {
+  override def init(implicit module: Module, version: ScalaVersion): Unit =
     ModuleRootModificationUtil.setModuleSdk(module, instance)
-  }
 
   override def clean(implicit module: Module): Unit = {
     ModuleRootModificationUtil.setModuleSdk(module, null)
@@ -56,22 +54,22 @@ object SmartJDKLoader {
   private val jdkPaths = {
     val userHome = SystemProperties.getUserHome
     Seq(
-      "/usr/lib/jvm",                      // linux style
-      "C:\\Program Files\\Java\\",         // windows style
-      "C:\\Program Files (x86)\\Java\\",   // windows 32bit style
+      "/usr/lib/jvm", // linux style
+      "C:\\Program Files\\Java\\", // windows style
+      "C:\\Program Files (x86)\\Java\\", // windows 32bit style
       "/Library/Java/JavaVirtualMachines", // mac style
       userHome + "/Library/Java/JavaVirtualMachines", // mac style
       userHome + "/.jabba/jdk", // jabba (for github actions)
-      userHome + "/.jdks", // by default IDEA downloads JDKs here
+      userHome + "/.jdks" // by default IDEA downloads JDKs here
     )
   }
 
   //NOTE: consider testing against JDK 17 by default in idea223.x
   def getOrCreateJDK(languageLevel: LanguageLevel = LanguageLevel.JDK_11): Sdk = {
     val jdkVersion = JavaSdkVersion.fromLanguageLevel(languageLevel)
-    val jdkName = jdkVersion.getDescription
+    val jdkName    = jdkVersion.getDescription
 
-    val jdkTable = JavaAwareProjectJdkTableImpl.getInstanceEx
+    val jdkTable               = JavaAwareProjectJdkTableImpl.getInstanceEx
     val registeredJdkFromTable = Option(jdkTable.findJdk(jdkName))
     registeredJdkFromTable.getOrElse {
       val jdk = createNewJdk(jdkVersion, jdkName)
@@ -94,31 +92,33 @@ object SmartJDKLoader {
     discoverJre(jdkPaths, jdkVersion)
 
   private def discoverJre(paths: Seq[String], jdkVersion: JavaSdkVersion): Option[File] = {
-    val versionMajor = jdkVersion.ordinal().toString
+    val versionMajor   = jdkVersion.ordinal().toString
     val versionStrings = Seq(s"1.$versionMajor", s"-$versionMajor", s"jdk$versionMajor")
-    val fromEnv = sys.env.get(jdkVersion.toString).orElse(sys.env.get(s"${jdkVersion}_0"))
-    val fromEnv64 = sys.env.get(s"${jdkVersion}_x64").orElse(sys.env.get(s"${jdkVersion}_0_x64")) // teamcity style
-    val priorityPaths = Seq(currentJava(versionMajor), fromEnv.orElse(fromEnv64).map(new File(_))).flatten
+    val fromEnv        = sys.env.get(jdkVersion.toString).orElse(sys.env.get(s"${jdkVersion}_0"))
+    val fromEnv64      = sys.env.get(s"${jdkVersion}_x64").orElse(sys.env.get(s"${jdkVersion}_0_x64")) // teamcity style
+    val priorityPaths  = Seq(currentJava(versionMajor), fromEnv.orElse(fromEnv64).map(new File(_))).flatten
 
     priorityPaths.headOption
       .orElse {
-        val fullSearchPaths = paths.flatMap { p => versionStrings.map((p, _)) }
+        val fullSearchPaths = paths.flatMap { p =>
+          versionStrings.map((p, _))
+        }
         val validPaths = fullSearchPaths.flatMap((inJvm _).tupled)
         validPaths.headOption
       }
   }
 
   private def findJDK(dir: File) = {
-    val macDir = new File(dir, "/Contents/Home") // mac workaround
+    val macDir     = new File(dir, "/Contents/Home") // mac workaround
     val candidates = List(macDir, dir, new File(dir, "/Home"))
     candidates
       .filter(_.isDirectory)
-      .find { _
-        .listFiles()
-        .exists { b =>
-          b.getName == "bin" &&
+      .find {
+        _.listFiles()
+          .exists { b =>
+            b.getName == "bin" &&
             b.listFiles().exists(x => x.getName == "javac.exe" || x.getName == "javac")
-        }
+          }
       }
   }
 

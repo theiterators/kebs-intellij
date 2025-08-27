@@ -16,21 +16,21 @@ package org.jetbrains.plugins.scala
 
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.{Project, ProjectUtil}
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.newvfs.impl.VfsData
-import com.intellij.psi.{PsiComment, PsiFile}
-import com.intellij.testFramework.TestModeFlags
-import com.intellij.testFramework.common.ThreadLeakTracker
+import com.intellij.psi.{PsiComment, PsiFile, PsiManager}
+import org.jetbrains.annotations.{NotNull, Nullable}
+import org.jetbrains.plugins.scala.extensions.{PathExt, ToNullSafe}
 import org.jetbrains.plugins.scala.lang.lexer.ScalaTokenTypes
-import org.jetbrains.plugins.scala.util.UnloadAwareDisposable
 import org.junit.Assert
 import org.junit.Assert.{assertNotNull, fail}
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.net.URISyntaxException
+import java.nio.charset.Charset
+import java.nio.file.Path
 import java.util
+import scala.util.chaining.scalaUtilChainingOps
 
 object TestUtils {
 
@@ -42,15 +42,18 @@ object TestUtils {
 
   private var TEST_DATA_PATH: String = _
 
+  def getTestDataDir: Path =
+    Path.of(getTestDataPath).toCanonicalPath
+
   def getTestDataPath: String = {
     if (TEST_DATA_PATH == null) {
       try {
         val resource = TestUtils.getClass.getClassLoader.getResource("testdata")
         TEST_DATA_PATH =
           if (resource == null)
-            find("scala/scala-impl", "testdata").getAbsolutePath
+            find("scala/scala-impl", "testdata").toAbsolutePath.toString
           else
-            new File(resource.toURI).getPath.replace(File.separatorChar, '/')
+            Path.of(resource.toURI).systemIndependentPathString
       } catch {
         case e @ (_: URISyntaxException | _: IOException) =>
           LOG.error(e)
@@ -65,28 +68,36 @@ object TestUtils {
   def findCommunityRoot: String = {
     // <community-root>/scala/scala-impl/testdata/
     val testDataPath = getTestDataPath
-    java.nio.file.Paths.get(testDataPath, "..", "..", "..").normalize.toString + "/"
+    Path.of(testDataPath, "..", "..", "..").normalize.toString + "/"
+  }
+
+  def findCommunityRootPath: Path =
+    Path.of(findCommunityRoot).normalize()
+
+  def findUltimateRootPath: Path = {
+    val community = findCommunityRootPath
+    community.getParent.normalize()
   }
 
   @throws[IOException]
   def findTestDataDir(pathname: String): String =
-    findTestDataDir(new File(pathname), "testdata")
+    findTestDataDir(Path.of(pathname), "testdata")
 
   @throws[IOException]
-  private def find(pathname: String, child: String): File = {
-    val file = new File("community/" + pathname, child)
+  private def find(pathname: String, child: String): Path = {
+    val file = Path.of("community", pathname, child)
     if (file.exists) file
-    else new File(findTestDataDir(pathname))
+    else Path.of(findTestDataDir(pathname))
   }
 
   /** Go upwards to find testdata, because when running test from IDEA, the launching dir might be some subdirectory. */
   @throws[IOException]
-  private def findTestDataDir(parent: File, child: String): String = {
-    val testData = new File(parent, child).getCanonicalFile
+  private def findTestDataDir(parent: Path, child: String): String = {
+    val testData = (parent / child).toCanonicalPath
     if (testData.exists)
-      testData.getCanonicalPath
+      testData.toString
     else {
-      val newParent = parent.getCanonicalFile.getParentFile
+      val newParent = parent.toCanonicalPath.getParent
       if (newParent == null) throw new RuntimeException("no testdata directory found")
       else findTestDataDir(newParent, child)
     }
@@ -103,12 +114,19 @@ object TestUtils {
   }
 
   @throws[IOException]
-  def readInput(filePath: String): util.List[String] = readInput(new File(filePath), null)
+  def readInput(filePath: String): util.List[String] = readInput(Path.of(filePath), null)
 
   @throws[IOException]
-  def readInput(file: File, encoding: String): util.List[String] = {
-    var content = new String(FileUtil.loadFileText(file, encoding))
+  def readInput(
+    file: Path,
+    @Nullable encoding: Charset,
+    allowEmptyFiles: Boolean = false
+  ): util.List[String] = {
+    var content = file.readAllBytesToString(encoding.nullSafe.getOrElse(Charset.defaultCharset))
     Assert.assertNotNull(content)
+
+    if (allowEmptyFiles && content.isEmpty) return util.Collections.emptyList()
+
     val input          = new util.ArrayList[String]
     var separatorIndex = 0
     content = StringUtil.replace(content, "\r", "") // for MACs
@@ -135,22 +153,6 @@ object TestUtils {
     input
   }
 
-  def disableTimerThread(): Unit = {
-    //This hacky "something" is originated from this commit:
-    //  Fixed thread leak in PrivacyPolicyUpdater (it was actually suppressed).
-    //  f0e2ac01 Alexander.Podkhalyuzin <alexander.podkhalyuzin@jetbrains.com> on 7/23/2016 at 12:03
-    //Not sure if it's still actual though
-    ThreadLeakTracker.longRunningThreadCreated(UnloadAwareDisposable.scalaPluginDisposable, "Timer")
-    ThreadLeakTracker.longRunningThreadCreated(UnloadAwareDisposable.scalaPluginDisposable, "BaseDataReader")
-    ThreadLeakTracker.longRunningThreadCreated(UnloadAwareDisposable.scalaPluginDisposable, "ProcessWaitFor")
-  }
-
-  def optimizeSearchingForIndexableFiles(): Unit =
-    // The test flag needs to be set _before_ calling super.setUp() in order to disable repeated searching
-    // for indexable files before each test. Our test environment in light project tests does not change
-    // between test runs and enabling this optimization cuts down test execution time considerably.
-    TestModeFlags.set(VfsData.ENABLE_IS_INDEXED_FLAG_KEY, java.lang.Boolean.TRUE)
-
   /**
     * @param fileText text of the file without last comment
     * @param expectedResult content of the last comment in teh file
@@ -168,7 +170,8 @@ object TestUtils {
     * }}}
     *
     * @param file file which was created from test data which contains comment in the end of the file
-    * @return 1. file content without last comment 2. last comment content as an expected result
+    * @return 1. file content without last comment<br>
+    *         2. last comment content as an expected result
     */
   def extractExpectedResultFromLastComment(file: PsiFile): ExpectedResultFromLastComment = {
     val fileText = file.getText
@@ -176,7 +179,9 @@ object TestUtils {
     val lastComment = file.findElementAt(fileText.length - 1) match {
       case comment: PsiComment => comment
       case element =>
-        fail(s"Last element in the file is expected to be a comment but got: ${element.getClass}").asInstanceOf[Nothing]
+        fail(
+          s"Last element in the file is expected to be a comment but got: ${element.getClass} with text: ${element.getText}"
+        ).asInstanceOf[Nothing]
     }
 
     val fileTextWithoutLastComment = file.getText.substring(0, lastComment.getTextOffset).trim
@@ -192,11 +197,31 @@ object TestUtils {
     ExpectedResultFromLastComment(fileTextWithoutLastComment, commentInnerContent.trim)
   }
 
-  def getPathRelativeToProject(file: VirtualFile, project: Project): String = {
-    val projectRoot = ProjectUtil.guessProjectDir(project)
-    assertNotNull(s"Can't guess project dir", file)
-    val pathParent = projectRoot.getPath
-    val pathChild  = file.getPath
+  @NotNull
+  @throws[AssertionError]
+  def guessProjectDir(@NotNull project: Project): VirtualFile = ProjectUtil.guessProjectDir(project).tap { file =>
+    assertNotNull(s"Cannot guess directory of project ${project.getName}", file)
+  }
+
+  @throws[AssertionError]
+  def getPathRelativeToProject(file: VirtualFile, @NotNull project: Project): String = {
+    val projectRoot = guessProjectDir(project)
+    val pathParent  = projectRoot.getPath
+    val pathChild   = file.getPath
     pathChild.stripPrefix(pathParent).stripPrefix("/")
+  }
+
+  @NotNull
+  @throws[AssertionError]
+  def findFileInProject(@NotNull project: Project, relativePath: String): PsiFile = {
+    val projectDir = guessProjectDir(project)
+
+    val vFile = projectDir.findFileByRelativePath(relativePath)
+    assertNotNull(s"Can't find virtual file ${projectDir.getCanonicalPath}/$relativePath", vFile)
+
+    //noinspection DfaNullableToNotNullParam
+    PsiManager.getInstance(project).findFile(vFile).tap { psiFile =>
+      assertNotNull(s"Can't psi file for $vFile", psiFile)
+    }
   }
 }

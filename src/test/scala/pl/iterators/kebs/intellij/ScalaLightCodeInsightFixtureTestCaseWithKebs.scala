@@ -12,10 +12,11 @@ trait ScalaLightCodeInsightFixtureTestCaseWithKebs extends ScalaLightCodeInsight
 
   override protected def defaultVersionOverride: Option[ScalaVersion] = Some(preferableSdkVersion)
 
-  override def librariesLoaders: Seq[LibraryLoader] =
-    super.librariesLoaders :+
-      IvyManagedLoader(iteratorsOrg %% "kebs-tagged"      % kebsVersion) :+
-      IvyManagedLoader(iteratorsOrg %% "kebs-tagged-meta" % kebsVersion) :+
+  override def additionalLibraries: Seq[LibraryLoader] =
+    Seq(
+      IvyManagedLoader(iteratorsOrg %% "kebs-tagged"      % kebsVersion),
+      IvyManagedLoader(iteratorsOrg %% "kebs-tagged-meta" % kebsVersion),
       IvyManagedLoader(iteratorsOrg %% "kebs-macro-utils" % kebsVersion)
+    )
 
 }

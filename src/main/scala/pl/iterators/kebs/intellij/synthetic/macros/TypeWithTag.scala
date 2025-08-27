@@ -2,6 +2,7 @@ package pl.iterators.kebs.intellij.synthetic.macros
 
 import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScTypeAlias, ScTypeAliasDefinition}
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.{ScObject, ScTemplateDefinition}
+import org.jetbrains.plugins.scala.lang.psi.types.Context.Default
 import org.jetbrains.plugins.scala.lang.psi.types.{ScParameterizedType, ScType}
 import pl.iterators.kebs.intellij.TypeUtils._
 import pl.iterators.kebs.intellij.kebsPackage
@@ -99,10 +100,10 @@ object TypeWithTag {
   // is it "SomeType @@ Tag"
   private def isTypeWithTag(scParameterizedType: ScParameterizedType): Boolean =
     (for {
-      aliasType       <- scParameterizedType.designator.aliasType
+      aliasType       <- scParameterizedType.designator.aliasType(Default)
       definition      <- getTypeAliasDefinition(aliasType.ta) if definition.name == kebsTaggedAlias
       containingType  <- definition.containingClass.`type`().toOption
-      containingClass <- containingType.extractClass
+      containingClass <- containingType.extractClass(Default)
       containingClassName = containingClass.getQualifiedName
     } yield containingClassName).contains(kebsTaggedPackageObjectName)
 }
