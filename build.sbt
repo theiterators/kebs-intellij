@@ -41,6 +41,10 @@ lazy val `kebs-intellij` = project
     patchPluginXml := pluginXmlOptions { xml =>
       xml.version     = version.value
       xml.changeNotes = ChangeNotes.value
+    },
+    buildIntellijOptionsIndex := {
+      // skip building the index, it's not needed for this plugin, and it fails on CI since it requires display to work
+      streams.value.log.info("Skipping buildIntellijOptionsIndex")
     }
   )
 
