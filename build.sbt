@@ -20,6 +20,8 @@ ThisBuild / scalacOptions ++= Seq(
   "-language:existentials"
 )
 
+Global / buildIntellijOptionsIndex := false
+
 (Global / javacOptions) := Seq("--release", "17")
 
 lazy val `kebs-intellij` = project
