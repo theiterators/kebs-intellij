@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / scalaVersion := "2.13.16"
 ThisBuild / organization := "pl.iterators"
 ThisBuild / organizationName := "Iterators"
 ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
@@ -19,6 +19,8 @@ ThisBuild / scalacOptions ++= Seq(
   "-language:reflectiveCalls",
   "-language:existentials"
 )
+
+(Global / javacOptions) := Seq("--release", "17")
 
 lazy val `kebs-intellij` = project
   .in(file("."))
