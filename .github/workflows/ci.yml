@@ -1,9 +1,14 @@
 name: Continuous Integration
 
-on: [ push ]
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   test:
+    # Skip if it's a PR from the same repo (already ran on push)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
       matrix:
