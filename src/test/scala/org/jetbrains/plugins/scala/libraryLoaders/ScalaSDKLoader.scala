@@ -5,9 +5,15 @@ import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.openapi.roots.ui.configuration.libraryEditor.ExistingLibraryEditor
 import com.intellij.openapi.vfs.{JarFileSystem, VirtualFile}
 import com.intellij.testFramework.PsiTestUtil
-import org.jetbrains.plugins.scala.extensions.{inWriteAction, ObjectExt, PathExt}
+import org.jetbrains.plugins.scala.extensions.{ObjectExt, PathExt, inWriteAction}
 import org.jetbrains.plugins.scala.project.external.ScalaSdkUtils
-import org.jetbrains.plugins.scala.project.{template, ModuleExt, ScalaLibraryProperties, ScalaLibraryType}
+import org.jetbrains.plugins.scala.project.{
+  ModuleExt,
+  ReplClasspath,
+  ScalaLibraryProperties,
+  ScalaLibraryType,
+  template
+}
 import org.jetbrains.plugins.scala.{DependencyManager, DependencyManagerBase, ScalaVersion}
 import org.junit.Assert._
 
@@ -131,8 +137,14 @@ case class ScalaSDKLoader(
         .getOrElse(createNewLibrary)
 
     inWriteAction {
-      val version    = Artifact.ScalaCompiler.versionOf(compilerFile)
-      val properties = ScalaLibraryProperties(version, compilerClasspath, Seq.empty, compilerBridge)
+      val version = Artifact.ScalaCompiler.versionOf(compilerFile)
+      val properties = ScalaLibraryProperties(
+        version,
+        compilerClasspath,
+        Seq.empty,
+        compilerBridge,
+        ReplClasspath.fromPaths(compilerClasspath)
+      )
 
       val editor = new ExistingLibraryEditor(library, null)
       editor.setType(ScalaLibraryType())

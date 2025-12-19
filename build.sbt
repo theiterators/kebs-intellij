@@ -5,7 +5,7 @@ ThisBuild / organizationHomepage := Some(url("https://iteratorshq.com/"))
 ThisBuild / intellijPluginName := "kebs-intellij"
 // List of release versions: https://www.jetbrains.com/intellij-repository/releases
 // List of snapshot versions: https://www.jetbrains.com/intellij-repository/snapshots
-ThisBuild / intellijBuild := "252.23892.409"
+ThisBuild / intellijBuild := "253.28294.334"
 
 ThisBuild / scalacOptions ++= Seq(
   "-explaintypes",
@@ -30,8 +30,7 @@ lazy val `kebs-intellij` = project
   .settings(
     intellijPlugins := Seq(
       "com.intellij.java".toPlugin, // this is not required in the runtime, although it is required by JetBrains, see https://blog.jetbrains.com/platform/2019/06/java-functionality-extracted-as-a-plugin/
-      "org.intellij.scala".toPlugin,
-      "org.intellij.intelliLang".toPlugin
+      "org.intellij.scala".toPlugin
     ),
     libraryDependencies ++= Seq(
       "com.github.sbt"    % "junit-interface"   % "0.13.3" % Test,
