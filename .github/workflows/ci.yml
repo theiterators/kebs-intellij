@@ -71,6 +71,7 @@ jobs:
           ide-versions: |
             ideaIC:2025.2
             ideaIC:2025.3
+            ideaIC:2026.1
           failure-levels: |
             COMPATIBILITY_PROBLEMS
             INVALID_PLUGIN
